@@ -56,7 +56,8 @@ public class MyCrawler extends WebCrawler {
              Set<WebURL> links = htmlParseData.getOutgoingUrls();
              
              URL urls = new URL("https://gateway-a.watsonplatform.net/calls/url/URLGetCombinedData?url=" + url + ".html&outputMode=json&extract=keywords,entities,concepts&sentiment=1&maxRetrieve=3&apikey=ddc06944c93c23c9cfd6e6bbbb6cd5c00e7bf18b");
-
+             Controller.counter ++;
+             
              try (BufferedReader reader = new BufferedReader(new InputStreamReader(urls.openStream(), "UTF-8"))) {
                  for (String line; (line = reader.readLine()) != null;) {
                      System.out.println(line);
@@ -66,6 +67,7 @@ public class MyCrawler extends WebCrawler {
              System.out.println("Text length: " + text.length());
              System.out.println("Html length: " + html.length());
              System.out.println("Number of outgoing links: " + links.size());
+             System.out.println("Websites visited: " + Controller.counter);
          }
     }
 }
