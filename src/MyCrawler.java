@@ -2,12 +2,17 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URL;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.Set;
 import java.util.regex.Pattern;
 
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.xpath.XPathExpressionException;
 
+import org.json.JSONObject;
 import org.xml.sax.SAXException;
 
 import edu.uci.ics.crawler4j.crawler.Page;
@@ -43,31 +48,55 @@ public class MyCrawler extends WebCrawler {
      * @throws SAXException 
      * @throws IOException 
      * @throws XPathExpressionException 
+     * @throws SQLException 
       */
      @Override
-     public void visit(Page page) throws XPathExpressionException, IOException, SAXException, ParserConfigurationException {
+     public void visit(Page page) throws XPathExpressionException, IOException, SAXException, ParserConfigurationException, SQLException {
          String url = page.getWebURL().getURL();
          System.out.println("URL: " + url);
+         
+         try {
+			Class.forName("com.mysql.jdbc.Driver");
+		} catch (ClassNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 
          if (page.getParseData() instanceof HtmlParseData) {
              HtmlParseData htmlParseData = (HtmlParseData) page.getParseData();
              String text = htmlParseData.getText();
              String html = htmlParseData.getHtml();
              Set<WebURL> links = htmlParseData.getOutgoingUrls();
-             
-             URL urls = new URL("https://gateway-a.watsonplatform.net/calls/url/URLGetCombinedData?url=" + url + ".html&outputMode=json&extract=keywords,entities,concepts&sentiment=1&maxRetrieve=3&apikey=ddc06944c93c23c9cfd6e6bbbb6cd5c00e7bf18b");
+             URL urls = new URL("https://gateway-a.watsonplatform.net/calls/url/URLGetCombinedData?url=" + url + "&outputMode=json&extract=keywords,entities,concepts&sentiment=1&maxRetrieve=3&apikey=ddc06944c93c23c9cfd6e6bbbb6cd5c00e7bf18b");
              Controller.counter ++;
-             
+             String alchemy = "";
              try (BufferedReader reader = new BufferedReader(new InputStreamReader(urls.openStream(), "UTF-8"))) {
                  for (String line; (line = reader.readLine()) != null;) {
+                     //alchemy = alchemy +line;
                      System.out.println(line);
                  }
              }
-
+             
+            /* JSONObject obj = new JSONObject(alchemy);
+             try {
+				Class.forName("com.mysql.jdbc.Driver");
+				Connection connection = DriverManager.getConnection("jdbc:mysql://"+Controller.host+":"+Controller.port+"/demo", ""+Controller.user, ""+Controller.password);
+				Statement statement = connection.createStatement();
+     	      
+     	      String sql = "INSERT INTO test"  +
+     	                  "VALUES (100, 'Zara', 'Ali', 18)";
+     	      statement.executeUpdate(sql);
+             } catch (ClassNotFoundException e) {
+ 				// TODO Auto-generated catch block
+ 				e.printStackTrace();
+ 			}*/
              System.out.println("Text length: " + text.length());
              System.out.println("Html length: " + html.length());
              System.out.println("Number of outgoing links: " + links.size());
              System.out.println("Websites visited: " + Controller.counter);
+             
          }
     }
+     
+     
 }
