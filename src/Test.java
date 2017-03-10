@@ -1,12 +1,22 @@
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.TimeZone;
 
 import org.json.JSONObject;
 
 public class Test {
-public static void main(String[] args) throws ClassNotFoundException, SQLException {
+public static void main(String[] args) throws ClassNotFoundException, SQLException, IOException {
 	
 		Class.forName("com.mysql.jdbc.Driver");
 		Connection connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/demo", "root", "");
@@ -56,7 +66,30 @@ public static void main(String[] args) throws ClassNotFoundException, SQLExcepti
 	//keywords
 	String key = json.get("keywords").toString();
 	key = key.substring(1, key.length()-1);
-	JSONObject keywords = new JSONObject(key);
-	System.out.println(key);
+	String[] keyArray = key.split("(},\\{)");
+	if(keyArray.length > 1){
+		keyArray[0] = keyArray[0] + "}";
+		keyArray[keyArray.length - 1] = "{" + keyArray[keyArray.length - 1];
+		for(int i = 1; i < keyArray.length - 1; i ++){
+			keyArray[i] = "{" + keyArray[i] + "}";
+		}
+	}
+	
+	//JSONObject keywords = new JSONObject(keyArray[i]);
+	String wlAnaPath = "C:\\Users\\ml538117\\Desktop\\Pfad.txt";
+    String wlCrPath = "C:\\Users\\ml538117\\Desktop\\Pfad.txt";
+    String[] wlAnalysis = readFile(wlAnaPath,StandardCharsets.UTF_8).split(",");
+    String[] wlCrawler = readFile(wlCrPath,StandardCharsets.UTF_8).split(",");
+	
+    for(int i = 0; i < wlAnalysis.length ; i++){
+   	 	System.out.println(wlAnalysis[i].toLowerCase());
+    }
+
 }
+static String readFile(String path, Charset encoding) 
+ 		  throws IOException 
+ 		{
+ 		  byte[] encoded = Files.readAllBytes(Paths.get(path));
+ 		  return new String(encoded, encoding);
+ 		}
 }
