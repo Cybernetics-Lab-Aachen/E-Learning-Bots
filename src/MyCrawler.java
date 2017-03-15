@@ -110,6 +110,7 @@ public class MyCrawler extends WebCrawler {
                     		String timeStamp = timeFormat.format(Calendar.getInstance().getTime());
                     		timeStamp = timeStamp.substring(9, 11);
                     		int waitingTime = (25 - Integer.parseInt(timeStamp)) * 3600000;
+                    		System.out.println("Pause until next day");
                     		Thread.sleep(waitingTime);                		
                      }
              
