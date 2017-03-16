@@ -25,18 +25,14 @@ public static void main(String[] args) throws ClassNotFoundException, SQLExcepti
 	    /*  String sql = "INSERT INTO test"  +
 	                  "VALUES (100, 'Zara', 'Ali', 18)";
 	      statement.executeUpdate(sql);*/
-    
+		
+		
+    int a = 0;
 	//source attributes
 	String sourceURL = "";
 	String language = "";
 	//entities attributes
-	int entCount = 0;
-	double entRelevance = 0;
-	double entSentScore = 0;
-	String entType = "";
-	String entText = "";
-	String entWeb = "";
-	String entDB = "";
+	String [] entity = new String [7];
 	//keywords attributes
 	String [] keywords = new String [3];
 	//source
@@ -46,22 +42,43 @@ public static void main(String[] args) throws ClassNotFoundException, SQLExcepti
 	//entities
 	String ent = json.get("entities").toString();
 	ent = ent.substring(1, ent.length()-1);
-	JSONObject entities = new JSONObject(ent);
-	entType = entities.getString("type");
-	entRelevance = entities.getDouble("relevance");
-	String entSentiment = entities.get("sentiment").toString();
-	String entLink = entities.get("disambiguated").toString();
-	JSONObject entLinks = new JSONObject(entLink);
-	entWeb = entLinks.getString("website");
-	entDB = entLinks.getString("dbpedia");
-	JSONObject entitiesSentiment = new JSONObject(entSentiment);
-	String entSentType = entitiesSentiment.get("type").toString();
-	entCount = entities.getInt("count");
-	entText = entities.getString("text");
-	if(entSentType != "neutral"){
-		entSentScore = entitiesSentiment.getDouble("score");
+	String[] entArray = ent.split("(},\\{)");
+	if(entArray.length > 1){
+		entArray[0] = entArray[0] + "}";
+		entArray[entArray.length - 1] = "{" + entArray[entArray.length - 1];
+		for(int i = 1; i < entArray.length - 1; i ++){
+			entArray[i] = "{" + entArray[i] + "}";
+		}
+	}
+	entity = new String[entArray.length*7];
+	for(int i = 0; i < entArray.length; i ++){
+		JSONObject entities = new JSONObject(ent);
+		entity[a] = entities.getString("type");
+		a++;
+		entity[a] = "" + entities.getDouble("relevance");
+		a++;
+		String entSentiment = entities.get("sentiment").toString();
+		String entLink = entities.get("disambiguated").toString();
+		JSONObject entLinks = new JSONObject(entLink);
+		entity[a] = entLinks.getString("website");
+		a++;
+		entity[a] = entLinks.getString("dbpedia");
+		a++;
+		JSONObject entitiesSentiment = new JSONObject(entSentiment);
+		String entSentType = entitiesSentiment.get("type").toString();
+		entity[a] = "" + entities.getInt("count");
+		a++;
+		entity[a] = entities.getString("text");
+		a++;
+		if(entSentType != "neutral"){
+			entity[a] = "" + entitiesSentiment.getDouble("score");
+		}else{
+			entity[a] = "0";
+		}
+		a++;
 	}
 	//keywords
+	a = 0;
 	String key = json.get("keywords").toString();
 	key = key.substring(1, key.length()-1);
 	String[] keyArray = key.split("(},\\{)");
@@ -74,7 +91,7 @@ public static void main(String[] args) throws ClassNotFoundException, SQLExcepti
 	}
 	keywords = new String[keyArray.length*3];
 	for(int i = 0; i < keyArray.length; i ++){
-		int a = 0;
+		
 		JSONObject keyword = new JSONObject(keyArray[i]);
 		keywords[a] = keyword.getString("text");
 		a++;
