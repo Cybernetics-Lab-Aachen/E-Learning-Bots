@@ -31,7 +31,6 @@ import edu.uci.ics.crawler4j.url.WebURL;
 
 public class MyCrawler extends WebCrawler {
 
-	int parsed = 0;
 	// source attributes
 	String sourceURL = "";
 	String language = "";
@@ -112,7 +111,7 @@ public class MyCrawler extends WebCrawler {
 			try (BufferedReader reader = new BufferedReader(new InputStreamReader(urls.openStream(), "UTF-8"))) {
 				for (String line; (line = reader.readLine()) != null;) {
 					alchemy = alchemy + line;
-					// System.out.println(line);
+					System.out.println(line);
 
 				}
 			}
@@ -175,9 +174,6 @@ public class MyCrawler extends WebCrawler {
 			for (int i = 0; i < keywords.length; i++) {
 				System.out.println(keywords[i]);
 			}
-			parsed++;
-			System.out.println("Parsed " + parsed + " strings successfully");
-
 		}
 	}
 
@@ -203,7 +199,7 @@ public class MyCrawler extends WebCrawler {
 		// entities
 		if (json.toString().contains("entities")) {
 			String ent = json.get("entities").toString();
-			if (ent == "[]") {
+			if (ent.contains("[]")) {
 				entity[a] = "";
 				a++;
 				entity[a] = "";
@@ -319,7 +315,7 @@ public class MyCrawler extends WebCrawler {
 		a = 0;
 		if (json.toString().contains("keywords")) {
 			String key = json.get("keywords").toString();
-			if (key == "[]") {
+			if (key.contains("[]")) {
 				keywords[a] = "";
 				a++;
 				keywords[a] = "";
@@ -373,7 +369,7 @@ public class MyCrawler extends WebCrawler {
 		a = 0;
 		if (json.toString().contains("concepts")) {
 			String con = json.get("concepts").toString();
-			if (con == "[]") {
+			if (con.contains("[]")) {
 				concepts[a] = "";
 				a++;
 				concepts[a] = "";
