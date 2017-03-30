@@ -8,6 +8,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.text.DateFormat;
@@ -24,6 +25,8 @@ import javax.xml.xpath.XPathExpressionException;
 import org.json.JSONObject;
 import org.xml.sax.SAXException;
 
+import com.mysql.jdbc.PreparedStatement;
+
 import edu.uci.ics.crawler4j.crawler.Page;
 import edu.uci.ics.crawler4j.crawler.WebCrawler;
 import edu.uci.ics.crawler4j.parser.HtmlParseData;
@@ -37,7 +40,7 @@ public class MyCrawler extends WebCrawler {
 	// entities attributes
 	String[] entity = new String[7];
 	// keywords attributes
-	String[] keywords = new String[3];
+	String[] keywords = new String[8];
 	// concepts
 	String[] concepts = new String[4];
 
@@ -84,13 +87,24 @@ public class MyCrawler extends WebCrawler {
 		String wlCrPath = "C:\\Users\\ml538117\\Desktop\\Pfad.txt";
 		String[] wlAnalysis = readFile(wlAnaPath, StandardCharsets.UTF_8).split(",");
 		String[] wlCrawler = readFile(wlCrPath, StandardCharsets.UTF_8).split(",");
-
+		
 		try {
 			Class.forName("com.mysql.jdbc.Driver");
 		} catch (ClassNotFoundException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+		Connection connection = DriverManager.getConnection(
+				"jdbc:mysql://" + Controller.host + ":" + Controller.port + "/demo", "" + Controller.user,
+				"" + Controller.password);
+		Statement statement = connection.createStatement();
+		ResultSet res = statement.executeQuery("SELECT * FROM  visits");
+		res.next();
+		Controller.counter = res.getInt("visits");
+		Controller.counter++;
+		PreparedStatement sql = (PreparedStatement) connection
+				.prepareStatement("UPDATE visits SET visits =" + Controller.counter);
+		sql.executeUpdate();
 
 		if (page.getParseData() instanceof HtmlParseData) {
 			boolean passed = false;
@@ -110,7 +124,7 @@ public class MyCrawler extends WebCrawler {
 			Set<WebURL> links = htmlParseData.getOutgoingUrls();
 			URL urls = new URL("https://gateway-a.watsonplatform.net/calls/url/URLGetCombinedData?url=" + url
 					+ "&outputMode=json&extract=keywords,entities,concepts&sentiment=1&maxRetrieve=3&apikey=ddc06944c93c23c9cfd6e6bbbb6cd5c00e7bf18b");
-			Controller.counter++;
+			
 			String alchemy = "";
 			try (BufferedReader reader = new BufferedReader(new InputStreamReader(urls.openStream(), "UTF-8"))) {
 				for (String line; (line = reader.readLine()) != null;) {
@@ -156,14 +170,6 @@ public class MyCrawler extends WebCrawler {
 			}
 			date = date.substring(6, 8) + "." + date.substring(4, 6) + "." + date.substring(0, 4);
 
-			Connection connection = DriverManager.getConnection(
-					"jdbc:mysql://" + Controller.host + ":" + Controller.port + "/demo", "" + Controller.user,
-					"" + Controller.password);
-			Statement statement = connection.createStatement();
-			String sql = "INSERT INTO demo" + "sources (" + sourceURL + ", " + language + ", " + date + ", " + nextVisit
-					+ ")";
-			statement.executeUpdate(sql);
-
 			/*
 			 * System.out.println("Text length: " + text.length());
 			 * System.out.println("Html length: " + html.length());
@@ -182,12 +188,119 @@ public class MyCrawler extends WebCrawler {
 			for (int i = 0; i < keywords.length; i++) {
 				System.out.println(keywords[i]);
 			}
+			accessDB(connection, statement);
 		}
 	}
 
 	static String readFile(String path, Charset encoding) throws IOException {
 		byte[] encoded = Files.readAllBytes(Paths.get(path));
 		return new String(encoded, encoding);
+	}
+
+	public void accessDB(Connection connection, Statement statement) throws SQLException {
+		SimpleDateFormat timeFormat = new SimpleDateFormat("yyyyMMdd_HHmmss");
+		timeFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+		String lastVisit = "";
+		lastVisit = timeFormat.format(Calendar.getInstance().getTime());
+		String c = lastVisit.substring(4, 6);
+		int nextTime = Integer.parseInt(c) + 1;
+		String nextVisit = "";
+		if (nextTime == 13) {
+			c = lastVisit.substring(0, 4);
+			nextTime = Integer.parseInt(c) + 1;
+			nextVisit = lastVisit.substring(6, 8) + ".01." + nextTime;
+		} else {
+			nextVisit = lastVisit.substring(6, 8) + "." + nextTime + "." + lastVisit.substring(0, 4);
+		}
+		lastVisit = lastVisit.substring(6, 8) + "." + lastVisit.substring(4, 6) + "." + lastVisit.substring(0, 4);
+		System.out.println(nextVisit);
+
+		PreparedStatement sql = (PreparedStatement) connection
+				.prepareStatement("INSERT INTO sources (url, language, lastVisit, nextVisit)" + " VALUES (?,?,?,?)");
+		sql.setString(1, sourceURL);
+		sql.setString(2, language);
+		sql.setString(3, lastVisit);
+		sql.setString(4, nextVisit);
+		sql.executeUpdate();
+		System.out.println("Updated sources");
+		ResultSet res = statement.executeQuery("SELECT * FROM  sources where url = '" + sourceURL + "'");
+		res.next();
+		int id = res.getInt("sourceId");
+
+		for (int i = 0; i < concepts.length;) {
+			if (concepts[1] != "") {
+				sql = (PreparedStatement) connection.prepareStatement(
+						"INSERT INTO concepts (text, relevance, website_Link, dbpedia_Link, sourcesID)"
+								+ " VALUES (?,?,?,?,?)");
+				sql.setString(1, concepts[i]);
+				i++;
+				sql.setDouble(2, Double.parseDouble(concepts[i]));
+				i++;
+				sql.setString(3, concepts[i]);
+				i++;
+				sql.setString(4, concepts[i]);
+				i++;
+				sql.setInt(5, id);
+				sql.executeUpdate();
+				System.out.println("Updated concepts");
+			} else {
+				i = 4;
+			}
+		}
+		for (int i = 0; i < keywords.length;) {
+			if (keywords[0] != "" && keywords[1] != "") {
+				sql = (PreparedStatement) connection.prepareStatement(
+						"INSERT INTO keywords (relevance, sentiment, text, anger, disgust, fear, joy, sadness, sourcesID)"
+								+ " VALUES (?,?,?,?,?,?,?,?,?)");
+				sql.setDouble(1, Double.parseDouble(keywords[i]));
+				i++;
+				sql.setDouble(2, Double.parseDouble(keywords[i]));
+				i++;
+				sql.setString(3, keywords[i]);
+				i++;
+				sql.setDouble(4, Double.parseDouble(keywords[i]));
+				i++;
+				sql.setDouble(5, Double.parseDouble(keywords[i]));
+				i++;
+				sql.setDouble(6, Double.parseDouble(keywords[i]));
+				i++;
+				sql.setDouble(7, Double.parseDouble(keywords[i]));
+				i++;
+				sql.setDouble(8, Double.parseDouble(keywords[i]));
+				i++;
+				sql.setInt(9, id);
+				sql.executeUpdate();
+				System.out.println("Updated keywords");
+			} else {
+				i = 3;
+			}
+		}
+		for (int i = 0; i < entity.length;) {
+			if (entity[1] != "" && entity[2] != "" && entity[3] != "") {
+				sql = (PreparedStatement) connection.prepareStatement(
+						"INSERT INTO entities (type, relevance, sentiment, count, text, website_Link, dbpedia_Link, sourcesID)"
+								+ " VALUES (?,?,?,?,?,?,?,?)");
+				sql.setString(1, entity[i]);
+				i++;
+				sql.setDouble(2, Double.parseDouble(entity[i]));
+				i++;
+				sql.setDouble(3, Double.parseDouble(entity[i]));
+				i++;
+				sql.setInt(4, Integer.parseInt(entity[i]));
+				i++;
+				sql.setString(5, entity[i]);
+				i++;
+				sql.setString(6, entity[i]);
+				i++;
+				sql.setString(7, entity[i]);
+				i++;
+				sql.setInt(8, id);
+				sql.executeUpdate();
+				System.out.println("Updated entity");
+			} else {
+				i = 7;
+			}
+		}
 	}
 
 	public void parseJson(String alchemy) {
