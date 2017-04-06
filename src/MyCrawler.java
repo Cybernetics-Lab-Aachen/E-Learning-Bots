@@ -11,10 +11,8 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
-import java.util.Date;
 import java.util.Set;
 import java.util.TimeZone;
 import java.util.regex.Pattern;
@@ -33,6 +31,7 @@ import edu.uci.ics.crawler4j.parser.HtmlParseData;
 import edu.uci.ics.crawler4j.url.WebURL;
 
 public class MyCrawler extends WebCrawler {
+	private static final String ALCHEMY_KEY = System.getenv("ALCHEMY_KEY");
 
 	// source attributes
 	String sourceURL = "";
@@ -43,6 +42,8 @@ public class MyCrawler extends WebCrawler {
 	String[] keywords = new String[8];
 	// concepts
 	String[] concepts = new String[4];
+	String text = "";
+	String url = "";
 
 	private final static Pattern FILTERS = Pattern.compile(".*(\\.(css|js|gif|jpg" + "|png|mp3|mp3|zip|gz))$");
 
@@ -76,18 +77,15 @@ public class MyCrawler extends WebCrawler {
 	@Override
 	public void visit(Page page) throws XPathExpressionException, IOException, SAXException,
 			ParserConfigurationException, SQLException, InterruptedException {
-		String url = page.getWebURL().getURL();
+		url = page.getWebURL().getURL();
 		SimpleDateFormat timeFormat = new SimpleDateFormat("yyyyMMdd_HHmmss");
 		timeFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
 		String date = "";
 		String nextVisit = "";
 		System.out.println("URL: " + url);
+		String[] wlAnalysis = readFile(Controller.wlAnaPath, StandardCharsets.UTF_8).split(",");
+		String[] wlCrawler = readFile(Controller.wlCrPath, StandardCharsets.UTF_8).split(",");
 
-		String wlAnaPath = "C:\\Users\\ml538117\\Desktop\\Pfad.txt";
-		String wlCrPath = "C:\\Users\\ml538117\\Desktop\\Pfad.txt";
-		String[] wlAnalysis = readFile(wlAnaPath, StandardCharsets.UTF_8).split(",");
-		String[] wlCrawler = readFile(wlCrPath, StandardCharsets.UTF_8).split(",");
-		
 		try {
 			Class.forName("com.mysql.jdbc.Driver");
 		} catch (ClassNotFoundException e) {
@@ -109,7 +107,7 @@ public class MyCrawler extends WebCrawler {
 		if (page.getParseData() instanceof HtmlParseData) {
 			boolean passed = false;
 			HtmlParseData htmlParseData = (HtmlParseData) page.getParseData();
-			String text = htmlParseData.getText();
+			text = htmlParseData.getText();
 			String html = htmlParseData.getHtml();
 			// check text with whitelistCrawler
 			for (int i = 0; i < wlCrawler.length; i++) {
@@ -121,42 +119,45 @@ public class MyCrawler extends WebCrawler {
 			if (passed == false) {
 				return;
 			}
-			Set<WebURL> links = htmlParseData.getOutgoingUrls();
-			URL urls = new URL("https://gateway-a.watsonplatform.net/calls/url/URLGetCombinedData?url=" + url
-					+ "&outputMode=json&extract=keywords,entities,concepts&sentiment=1&maxRetrieve=3&apikey=ddc06944c93c23c9cfd6e6bbbb6cd5c00e7bf18b");
-			
-			String alchemy = "";
-			try (BufferedReader reader = new BufferedReader(new InputStreamReader(urls.openStream(), "UTF-8"))) {
-				for (String line; (line = reader.readLine()) != null;) {
-					alchemy = alchemy + line;
-					System.out.println(line);
+			if (Controller.enableAlchemy) {
+				Set<WebURL> links = htmlParseData.getOutgoingUrls();
+				URL urls = new URL("https://gateway-a.watsonplatform.net/calls/url/URLGetCombinedData?url=" + url
+						+ "&outputMode=json&extract=keywords,entities,concepts&sentiment=1&maxRetrieve=3&apikey=" + ALCHEMY_KEY);
 
+				String alchemy = "";
+				try (BufferedReader reader = new BufferedReader(new InputStreamReader(urls.openStream(), "UTF-8"))) {
+					for (String line; (line = reader.readLine()) != null;) {
+						alchemy = alchemy + line;
+						System.out.println(line);
+
+					}
 				}
-			}
-			parseJson(alchemy);
-			// pause till next day if daily limit(about 300 accesses) is
-			// exceeded
-			if (alchemy.contains("daily-transaction-limit-exceeded")) {
-				String timeStamp = timeFormat.format(Calendar.getInstance().getTime());
-				timeStamp = timeStamp.substring(9, 11);
-				int waitingTime = (25 - Integer.parseInt(timeStamp)) * 3600000;
-				System.out.println("Pause until next day");
-				Thread.sleep(waitingTime);
-			}
-
-			// add JsonParser here + fit gathered data in StringArray --> then
-			// save in db
-
-			// check analysis with whitelistAnalysis
-			passed = false;
-			for (int i = 0; i < wlAnalysis.length; i++) {
-				if (text.toLowerCase().contains(wlAnalysis[i].toLowerCase())) {
-					passed = true;
-					break;
+				parseJson(alchemy);
+				// pause till next day if daily limit(about 300 accesses) is
+				// exceeded
+				if (alchemy.contains("daily-transaction-limit-exceeded")) {
+					String timeStamp = timeFormat.format(Calendar.getInstance().getTime());
+					timeStamp = timeStamp.substring(9, 11);
+					int waitingTime = (25 - Integer.parseInt(timeStamp)) * 3600000;
+					System.out.println("Pause until next day");
+					Thread.sleep(waitingTime);
 				}
-			}
-			if (passed == false) {
-				return;
+
+				// add JsonParser here + fit gathered data in StringArray -->
+				// then
+				// save in db
+
+				// check analysis with whitelistAnalysis
+				passed = false;
+				for (int i = 0; i < wlAnalysis.length; i++) {
+					if (text.toLowerCase().contains(wlAnalysis[i].toLowerCase())) {
+						passed = true;
+						break;
+					}
+				}
+				if (passed == false) {
+					return;
+				}
 			}
 			date = timeFormat.format(Calendar.getInstance().getTime());
 			String c = date.substring(4, 6);
@@ -215,88 +216,102 @@ public class MyCrawler extends WebCrawler {
 		lastVisit = lastVisit.substring(6, 8) + "." + lastVisit.substring(4, 6) + "." + lastVisit.substring(0, 4);
 		System.out.println(nextVisit);
 
-		PreparedStatement sql = (PreparedStatement) connection
-				.prepareStatement("INSERT INTO sources (url, language, lastVisit, nextVisit)" + " VALUES (?,?,?,?)");
-		sql.setString(1, sourceURL);
-		sql.setString(2, language);
-		sql.setString(3, lastVisit);
-		sql.setString(4, nextVisit);
-		sql.executeUpdate();
+		try (PreparedStatement sql = (PreparedStatement) connection.prepareStatement(
+				"INSERT INTO sources (url, language, lastVisit, nextVisit, data)" + " VALUES (?,?,?,?,?)");) {
+			if (Controller.enableAlchemy) {
+				sql.setString(1, sourceURL);
+			} else {
+				sql.setString(1, url);
+			}
+			sql.setString(2, language);
+			sql.setString(3, lastVisit);
+			sql.setString(4, nextVisit);
+			if (Controller.storeSources) {
+				sql.setString(5, text);
+			} else {
+				sql.setString(5, "");
+			}
+			sql.executeUpdate();
+		}
 		System.out.println("Updated sources");
-		ResultSet res = statement.executeQuery("SELECT * FROM  sources where url = '" + sourceURL + "'");
+		ResultSet res = statement.executeQuery("SELECT * FROM  sources where url = '" + sourceURL + "' AND lastVisit ='"
+				+ lastVisit + "' AND nextVisit = '" + nextVisit + "'");
 		res.next();
 		int id = res.getInt("sourceId");
 
 		for (int i = 0; i < concepts.length;) {
 			if (concepts[1] != "") {
-				sql = (PreparedStatement) connection.prepareStatement(
+				try (PreparedStatement sql = (PreparedStatement) connection.prepareStatement(
 						"INSERT INTO concepts (text, relevance, website_Link, dbpedia_Link, sourcesID)"
-								+ " VALUES (?,?,?,?,?)");
-				sql.setString(1, concepts[i]);
-				i++;
-				sql.setDouble(2, Double.parseDouble(concepts[i]));
-				i++;
-				sql.setString(3, concepts[i]);
-				i++;
-				sql.setString(4, concepts[i]);
-				i++;
-				sql.setInt(5, id);
-				sql.executeUpdate();
-				System.out.println("Updated concepts");
+								+ " VALUES (?,?,?,?,?)");) {
+					sql.setString(1, concepts[i]);
+					i++;
+					sql.setDouble(2, Double.parseDouble(concepts[i]));
+					i++;
+					sql.setString(3, concepts[i]);
+					i++;
+					sql.setString(4, concepts[i]);
+					i++;
+					sql.setInt(5, id);
+					sql.executeUpdate();
+					System.out.println("Updated concepts");
+				}
 			} else {
 				i = 4;
 			}
 		}
 		for (int i = 0; i < keywords.length;) {
 			if (keywords[0] != "" && keywords[1] != "") {
-				sql = (PreparedStatement) connection.prepareStatement(
+				try (PreparedStatement sql = (PreparedStatement) connection.prepareStatement(
 						"INSERT INTO keywords (relevance, sentiment, text, anger, disgust, fear, joy, sadness, sourcesID)"
-								+ " VALUES (?,?,?,?,?,?,?,?,?)");
-				sql.setDouble(1, Double.parseDouble(keywords[i]));
-				i++;
-				sql.setDouble(2, Double.parseDouble(keywords[i]));
-				i++;
-				sql.setString(3, keywords[i]);
-				i++;
-				sql.setDouble(4, Double.parseDouble(keywords[i]));
-				i++;
-				sql.setDouble(5, Double.parseDouble(keywords[i]));
-				i++;
-				sql.setDouble(6, Double.parseDouble(keywords[i]));
-				i++;
-				sql.setDouble(7, Double.parseDouble(keywords[i]));
-				i++;
-				sql.setDouble(8, Double.parseDouble(keywords[i]));
-				i++;
-				sql.setInt(9, id);
-				sql.executeUpdate();
-				System.out.println("Updated keywords");
+								+ " VALUES (?,?,?,?,?,?,?,?,?)");) {
+					sql.setDouble(1, Double.parseDouble(keywords[i]));
+					i++;
+					sql.setDouble(2, Double.parseDouble(keywords[i]));
+					i++;
+					sql.setString(3, keywords[i]);
+					i++;
+					sql.setDouble(4, Double.parseDouble(keywords[i]));
+					i++;
+					sql.setDouble(5, Double.parseDouble(keywords[i]));
+					i++;
+					sql.setDouble(6, Double.parseDouble(keywords[i]));
+					i++;
+					sql.setDouble(7, Double.parseDouble(keywords[i]));
+					i++;
+					sql.setDouble(8, Double.parseDouble(keywords[i]));
+					i++;
+					sql.setInt(9, id);
+					sql.executeUpdate();
+					System.out.println("Updated keywords");
+				}
 			} else {
 				i = 3;
 			}
 		}
 		for (int i = 0; i < entity.length;) {
 			if (entity[1] != "" && entity[2] != "" && entity[3] != "") {
-				sql = (PreparedStatement) connection.prepareStatement(
+				try (PreparedStatement sql = (PreparedStatement) connection.prepareStatement(
 						"INSERT INTO entities (type, relevance, sentiment, count, text, website_Link, dbpedia_Link, sourcesID)"
-								+ " VALUES (?,?,?,?,?,?,?,?)");
-				sql.setString(1, entity[i]);
-				i++;
-				sql.setDouble(2, Double.parseDouble(entity[i]));
-				i++;
-				sql.setDouble(3, Double.parseDouble(entity[i]));
-				i++;
-				sql.setInt(4, Integer.parseInt(entity[i]));
-				i++;
-				sql.setString(5, entity[i]);
-				i++;
-				sql.setString(6, entity[i]);
-				i++;
-				sql.setString(7, entity[i]);
-				i++;
-				sql.setInt(8, id);
-				sql.executeUpdate();
-				System.out.println("Updated entity");
+								+ " VALUES (?,?,?,?,?,?,?,?)");) {
+					sql.setString(1, entity[i]);
+					i++;
+					sql.setDouble(2, Double.parseDouble(entity[i]));
+					i++;
+					sql.setDouble(3, Double.parseDouble(entity[i]));
+					i++;
+					sql.setInt(4, Integer.parseInt(entity[i]));
+					i++;
+					sql.setString(5, entity[i]);
+					i++;
+					sql.setString(6, entity[i]);
+					i++;
+					sql.setString(7, entity[i]);
+					i++;
+					sql.setInt(8, id);
+					sql.executeUpdate();
+					System.out.println("Updated entity");
+				}
 			} else {
 				i = 7;
 			}
@@ -317,6 +332,7 @@ public class MyCrawler extends WebCrawler {
 		} else {
 			language = "";
 		}
+		language = json.toString().contains("language") ? json.get("language").toString() : "";
 		// entities
 		if (json.toString().contains("entities")) {
 			String ent = json.get("entities").toString();
