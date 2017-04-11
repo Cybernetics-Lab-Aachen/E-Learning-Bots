@@ -1,0 +1,10 @@
+<ivy-module version="2.0">
+	<info organisation="de.rwth-aachen.ima-zlw-ifu" module="e-earning-bots"/>
+	<dependencies>
+		<dependency org="edu.uci.ics" name="crawler4j" rev="4.2"/>
+		<dependency org="org.json" name="json" rev="20160810"/>
+		<dependency org="org.mariadb.jdbc" name="mariadb-java-client" rev="1.5.9"/>
+		<dependency org="mysql" name="mysql-connector-java" rev="5.1.41"/>
+		<dependency org="net.sf.jopt-simple" name="jopt-simple" rev="6.0-alpha-1"/>
+	</dependencies>
+</ivy-module>

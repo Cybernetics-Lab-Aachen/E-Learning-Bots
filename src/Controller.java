@@ -14,11 +14,14 @@ import edu.uci.ics.crawler4j.crawler.CrawlController;
 import edu.uci.ics.crawler4j.fetcher.PageFetcher;
 import edu.uci.ics.crawler4j.robotstxt.RobotstxtConfig;
 import edu.uci.ics.crawler4j.robotstxt.RobotstxtServer;
+import joptsimple.OptionParser;
+import joptsimple.OptionSet;
+import joptsimple.OptionSpec;
 
 public class Controller {
 	static int counter = 0;
 	static String host = "";
-	static String port = "";
+	static int port;
 	static String user = "";
 	static String password = "";
 	static boolean enableAlchemy = false;
@@ -30,22 +33,34 @@ public class Controller {
 	static int restartEveryDays = 0;
 
 	public static void main(String[] args) throws Exception {
-		host = args[0];
-		port = args[1];
-		user = args[2];
-		password = args[3];
-		if (args[4].contains("true")) {
-			enableAlchemy = true;
-		}
-		if (args[5].contains("true")) {
-			storeSources = true;
-		}
-		wlAnaPath = args[6];
-		wlCrPath = args[7];
-		String seedPath = args[8];
-		String crawlStorageFolder = args[9];
-		int numberOfCrawlers = Integer.parseInt(args[10]);
-		restartEveryDays = Integer.parseInt(args[11]);
+		// CLI stuff
+		final OptionParser parser = new OptionParser();
+		final OptionSpec<String> hostOption = parser.accepts("db_host").withRequiredArg().ofType(String.class).required();
+		final OptionSpec<Integer> portOption = parser.accepts("db_port").withRequiredArg().ofType(Integer.class).required();
+		final OptionSpec<String> userOption = parser.accepts("db_user").withRequiredArg().ofType(String.class).required();
+		final OptionSpec<String> passwordOption = parser.accepts("db_pass").withRequiredArg().ofType(String.class).required();
+		parser.accepts("alchemy");
+		parser.accepts("store_sources");
+		final OptionSpec<String> wlAnaPathOption = parser.accepts("alchemy_whitelist").requiredIf("alchemy").withRequiredArg().ofType(String.class);
+		final OptionSpec<String> wlCrPathOption = parser.accepts("crawler_whitelist").withRequiredArg().ofType(String.class).required();
+		final OptionSpec<String> seedPathOption = parser.accepts("seed").withRequiredArg().ofType(String.class).required();
+		final OptionSpec<String> crawlStorageFolderOption = parser.accepts("crawl_storage").withRequiredArg().ofType(String.class).required();
+		final OptionSpec<Integer> numberOfCrawlersOption = parser.accepts("number_of_crawlers").withRequiredArg().ofType(Integer.class).required();
+		final OptionSpec<Integer> restartEveryDaysOption = parser.accepts("restart_every_days").withRequiredArg().ofType(Integer.class).required();
+
+		final OptionSet options = parser.parse(args);
+		host = options.valueOf(hostOption);
+		port = options.valueOf(portOption);
+		user = options.valueOf(userOption);
+		password = options.valueOf(passwordOption);
+		enableAlchemy = options.has("alchemy");
+		storeSources = options.has("store_sources");
+		wlAnaPath = options.valueOf(wlAnaPathOption);
+		wlCrPath =  options.valueOf(wlCrPathOption);
+		String seedPath = options.valueOf(seedPathOption);
+		String crawlStorageFolder = options.valueOf(crawlStorageFolderOption);
+		int numberOfCrawlers = options.valueOf(numberOfCrawlersOption);
+		restartEveryDays = options.valueOf(restartEveryDaysOption);
 		try {
 			buildDB();
 		} catch (Exception e) {
