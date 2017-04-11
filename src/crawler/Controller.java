@@ -1,3 +1,5 @@
+package crawler;
+
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -5,7 +7,9 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 
 import com.mysql.jdbc.PreparedStatement;
 
@@ -48,8 +52,8 @@ public class Controller {
 		restartEveryDays = Integer.parseInt(args[11]);
 		try {
 			buildDB();
-		} catch (Exception e) {
-
+		} catch (com.mysql.jdbc.exceptions.jdbc4.MySQLIntegrityConstraintViolationException e) {
+			e.printStackTrace();
 		}
 		CrawlConfig config = new CrawlConfig();
 		config.setCrawlStorageFolder(crawlStorageFolder);
@@ -109,8 +113,17 @@ public class Controller {
 		sql = (PreparedStatement) connection.prepareStatement(
 				"CREATE TABLE IF NOT EXISTS `concepts` (  `conceptsId` int(11) NOT NULL AUTO_INCREMENT,  `text` varchar(255) NOT NULL,  `relevance` double NOT NULL,  `website_Link` text NOT NULL,  `dbpedia_Link` text NOT NULL,  `sourcesID` int(11) NOT NULL,  PRIMARY KEY (`conceptsId`),  UNIQUE KEY `conceptsId` (`conceptsId`),  KEY `conceptsId_2` (`conceptsId`),  KEY `sourcesID` (`sourcesID`),  KEY `relevance` (`relevance`),  KEY `text` (`text`)) ENGINE=InnoDB DEFAULT CHARSET=utf8;");
 		sql.executeUpdate();
-		sql = (PreparedStatement) connection.prepareStatement("INSERT INTO `visits` (`visits`) VALUES(0);");
-		sql.executeUpdate();
+		//check if visits has already an entry
+		try {
+			Statement statement = connection.createStatement();
+			ResultSet res = statement.executeQuery("SELECT * FROM  visits");
+			res.next();
+			int test = res.getInt("visits");
+		} catch (java.sql.SQLException e) {
+			sql = (PreparedStatement) connection.prepareStatement("INSERT INTO `visits` (`visits`) VALUES(0);");
+			sql.executeUpdate();
+			System.err.println(e.getStackTrace());
+		}
 	}
 
 	static String readFile(String path, Charset encoding) throws IOException {

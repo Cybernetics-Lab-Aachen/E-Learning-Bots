@@ -1,3 +1,4 @@
+package crawler;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -114,6 +115,7 @@ public class MyCrawler extends WebCrawler {
 			if (Controller.enableAlchemy) {
 				useAlchemy(wlAnalysis);
 			}
+			// check if crawler already made a run
 			try {
 				if (Controller.restart == false) {
 					ResultSet result = statement.executeQuery("SELECT * FROM  sources WHERE url ='" + url + "'");
@@ -121,9 +123,10 @@ public class MyCrawler extends WebCrawler {
 					Controller.run = result.getInt("run");
 					Controller.restart = true;
 				}
-			} catch (Exception e) {
+			} catch (java.sql.SQLException e) {
 				Controller.restart = true;
 				Controller.run = 1;
+				System.err.println(e.getStackTrace());
 			}
 			System.out.println("Websites visited: " + Controller.counter);
 
@@ -132,6 +135,8 @@ public class MyCrawler extends WebCrawler {
 	}
 
 	public void useAlchemy(String[] whiteList) throws InterruptedException, UnsupportedEncodingException, IOException {
+		// access Alchemy to receive JSon containing keywords, entities and
+		// concepts
 		URL urls = new URL("https://gateway-a.watsonplatform.net/calls/url/URLGetCombinedData?url=" + url
 				+ "&outputMode=json&extract=keywords,entities,concepts&sentiment=1&maxRetrieve=3&apikey="
 				+ ALCHEMY_KEY);
@@ -169,6 +174,7 @@ public class MyCrawler extends WebCrawler {
 	}
 
 	public void accessDB(Connection connection, Statement statement) throws SQLException, ParseException {
+		// receiving current timestamp
 		SimpleDateFormat timeFormat = new SimpleDateFormat("yyyyMMdd_HHmmss");
 		timeFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
 		String lastVisit = "";
@@ -278,14 +284,23 @@ public class MyCrawler extends WebCrawler {
 					i = 7;
 				}
 			}
-		} catch (Exception e) {
-
+		} catch (com.mysql.jdbc.exceptions.jdbc4.MySQLIntegrityConstraintViolationException e) {
+			System.err.println(e.getStackTrace());
+		} catch (java.sql.SQLException e){
+			System.err.println(e.getStackTrace());
 		}
 	}
 
 	public void parseJson(String alchemy) {
 		int a = 0;
 		// source
+		/*
+		 * going through JSon step by step saving necessary data in String
+		 * Arrays. Each n fields are equal to one keyword/concept/entity. If
+		 * parts are empty in the JSon the arrays are also filled up with empty
+		 * Strings or fixed values (0 for integers and doubles except emotions
+		 * from keywords) to be easy to identify later.
+		 */
 		JSONObject json = new JSONObject(alchemy);
 		if (json.toString().contains("url")) {
 			sourceURL = json.get("url").toString();
@@ -297,7 +312,6 @@ public class MyCrawler extends WebCrawler {
 		} else {
 			language = "";
 		}
-		language = json.toString().contains("language") ? json.get("language").toString() : "";
 		// entities
 		if (json.toString().contains("entities")) {
 			String ent = json.get("entities").toString();
@@ -317,6 +331,7 @@ public class MyCrawler extends WebCrawler {
 				entity[a] = "0";
 				a++;
 			} else {
+				// preparing String ent to be used for JSONObject
 				if (ent.startsWith("[") && ent.endsWith("]")) {
 					ent = ent.substring(1, ent.length() - 1);
 				}
@@ -328,6 +343,7 @@ public class MyCrawler extends WebCrawler {
 						entArray[i] = "{" + entArray[i] + "}";
 					}
 				}
+				// setting 7 fields for each entity
 				entity = new String[entArray.length * 7];
 				for (int i = 0; i < entArray.length; i++) {
 					JSONObject entities = new JSONObject(entArray[i]);
@@ -414,6 +430,7 @@ public class MyCrawler extends WebCrawler {
 			a++;
 		}
 		// keywords
+		// missing emotions will be saved as -10 to be easy to identify later
 		a = 0;
 		if (json.toString().contains("keywords")) {
 			String key = json.get("keywords").toString();
@@ -435,6 +452,7 @@ public class MyCrawler extends WebCrawler {
 				keywords[a] = "" + -10;
 				a++;
 			} else {
+				// preparing String key to be used for JSONObject
 				key = key.substring(1, key.length() - 1);
 				String[] keyArray = key.split("(},\\{)");
 				if (keyArray.length > 1) {
@@ -444,6 +462,7 @@ public class MyCrawler extends WebCrawler {
 						keyArray[i] = "{" + keyArray[i] + "}";
 					}
 				}
+				// setting 8 fields for each keyword
 				keywords = new String[keyArray.length * 8];
 				for (int i = 0; i < keyArray.length; i++) {
 					JSONObject keyword = new JSONObject(keyArray[i]);
@@ -545,6 +564,7 @@ public class MyCrawler extends WebCrawler {
 				concepts[a] = "";
 				a++;
 			} else {
+				// preparing String con to be used for JSONObject
 				con = con.substring(1, con.length() - 1);
 				String[] conArray = con.split("(},\\{)");
 				if (conArray.length > 1) {
@@ -554,6 +574,7 @@ public class MyCrawler extends WebCrawler {
 						conArray[i] = "{" + conArray[i] + "}";
 					}
 				}
+				// setting for fields for each concept
 				concepts = new String[conArray.length * 4];
 				for (int i = 0; i < conArray.length; i++) {
 
