@@ -37,6 +37,7 @@ public class Controller {
 
 	public static void main(String[] args) throws Exception {
 		// CLI stuff
+<<<<<<< HEAD:src/crawler/Controller.java
 				final OptionParser parser = new OptionParser();
 				final OptionSpec<String> hostOption = parser.accepts("db_host").withRequiredArg().ofType(String.class).required();
 				final OptionSpec<Integer> portOption = parser.accepts("db_port").withRequiredArg().ofType(Integer.class).required();
@@ -64,6 +65,35 @@ public class Controller {
 				String crawlStorageFolder = options.valueOf(crawlStorageFolderOption);
 				int numberOfCrawlers = options.valueOf(numberOfCrawlersOption);
 				restartEveryDays = options.valueOf(restartEveryDaysOption);
+=======
+		final OptionParser parser = new OptionParser();
+		final OptionSpec<String> hostOption = parser.accepts("db_host").withRequiredArg().ofType(String.class).required();
+		final OptionSpec<Integer> portOption = parser.accepts("db_port").withRequiredArg().ofType(Integer.class).required();
+		final OptionSpec<String> userOption = parser.accepts("db_user").withRequiredArg().ofType(String.class).required();
+		final OptionSpec<String> passwordOption = parser.accepts("db_pass").withRequiredArg().ofType(String.class).required();
+		parser.accepts("alchemy");
+		parser.accepts("store_sources");
+		final OptionSpec<String> wlAnaPathOption = parser.accepts("alchemy_whitelist").requiredIf("alchemy").withRequiredArg().ofType(String.class);
+		final OptionSpec<String> wlCrPathOption = parser.accepts("crawler_whitelist").withRequiredArg().ofType(String.class).required();
+		final OptionSpec<String> seedPathOption = parser.accepts("seed").withRequiredArg().ofType(String.class).required();
+		final OptionSpec<String> crawlStorageFolderOption = parser.accepts("crawl_storage").withRequiredArg().ofType(String.class).required();
+		final OptionSpec<Integer> numberOfCrawlersOption = parser.accepts("number_of_crawlers").withRequiredArg().ofType(Integer.class).required();
+		final OptionSpec<Integer> restartEveryDaysOption = parser.accepts("restart_every_days").withRequiredArg().ofType(Integer.class).required();
+
+		final OptionSet options = parser.parse(args);
+		host = options.valueOf(hostOption);
+		port = options.valueOf(portOption);
+		user = options.valueOf(userOption);
+		password = options.valueOf(passwordOption);
+		enableAlchemy = options.has("alchemy");
+		storeSources = options.has("store_sources");
+		wlAnaPath = options.valueOf(wlAnaPathOption);
+		wlCrPath =  options.valueOf(wlCrPathOption);
+		String seedPath = options.valueOf(seedPathOption);
+		String crawlStorageFolder = options.valueOf(crawlStorageFolderOption);
+		int numberOfCrawlers = options.valueOf(numberOfCrawlersOption);
+		restartEveryDays = options.valueOf(restartEveryDaysOption);
+>>>>>>> 4fda68aff46dc3f8f7d10c01f04e7554f732100f:src/Controller.java
 		try {
 			buildDB();
 		} catch (com.mysql.jdbc.exceptions.jdbc4.MySQLIntegrityConstraintViolationException e) {

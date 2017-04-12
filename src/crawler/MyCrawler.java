@@ -128,7 +128,6 @@ public class MyCrawler extends WebCrawler {
 					Controller.run = 1;
 				}
 				System.out.println("Websites visited: " + Controller.counter);
-
 				accessDB(connection, statement);
 			}
 		} catch (IOException | SQLException | ParseException | InterruptedException ex) {
