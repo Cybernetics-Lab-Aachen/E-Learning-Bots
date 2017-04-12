@@ -86,13 +86,6 @@ public class MyCrawler extends WebCrawler {
 			System.out.println("URL: " + url);
 			String[] wlAnalysis = readFile(Controller.wlAnaPath, StandardCharsets.UTF_8).split(",");
 			String[] wlCrawler = readFile(Controller.wlCrPath, StandardCharsets.UTF_8).split(",");
-
-			try {
-				Class.forName("com.mysql.jdbc.Driver");
-			} catch (ClassNotFoundException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
 			Connection connection = DriverManager.getConnection(
 					"jdbc:mysql://" + Controller.host + ":" + Controller.port + "/demo", "" + Controller.user,
 					"" + Controller.password);

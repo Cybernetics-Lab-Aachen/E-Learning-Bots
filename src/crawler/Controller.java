@@ -35,6 +35,14 @@ public class Controller {
 	static int run = 0;
 	static int restartEveryDays = 0;
 
+	static {
+		try {
+			Class.forName("com.mysql.jdbc.Driver");
+		} catch (final ClassNotFoundException ex) {
+			throw new AssertionError("Can't find mysql driver: ", ex);
+		}
+	}
+	
 	public static void main(String[] args) throws Exception {
 		// CLI stuff
 
@@ -110,12 +118,6 @@ public class Controller {
 	}
 
 	static void buildDB() throws SQLException {
-		try {
-			Class.forName("com.mysql.jdbc.Driver");
-		} catch (ClassNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
 		Connection connection = DriverManager.getConnection(
 				"jdbc:mysql://" + Controller.host + ":" + Controller.port + "/demo", "" + Controller.user,
 				"" + Controller.password);
