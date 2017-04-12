@@ -13,7 +13,7 @@ RUN wget http://central.maven.org/maven2/edu/uci/ics/crawler4j/4.3/crawler4j-4.3
 ADD ./src .
 
 # Compile
-RUN javac -sourcepath . -cp crawler4j-4.3.jar:json-20160810.jar:mysql-connector-java-5.1.6.jar:mariadb-java-client-1.5.9.jar:jopt-simple-6.0-alpha-1.jar  Controller.java
+RUN javac -sourcepath . -cp crawler4j-4.3.jar:json-20160810.jar:mysql-connector-java-5.1.6.jar:mariadb-java-client-1.5.9.jar:jopt-simple-6.0-alpha-1.jar Controller.java
 
 VOLUME /usr/src/e-learning-bots/crawl-storage
-ENTRYPOINT ["java", "-cp", "crawler4j-4.3.jar:json-20160810.jar:mysql-connector-java-5.1.6.jar:mariadb-java-client-1.5.9.jar:jopt-simple-6.0-alpha-1.jar:.", "Controller"]
+ENTRYPOINT ["java", "-cp", "crawler4j-4.3.jar:json-20160810.jar:mysql-connector-java-5.1.6.jar:mariadb-java-client-1.5.9.jar:jopt-simple-6.0-alpha-1.jar:.", "crawler.Controller"]
