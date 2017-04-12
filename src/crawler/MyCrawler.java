@@ -1,4 +1,5 @@
 package crawler;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -79,58 +80,59 @@ public class MyCrawler extends WebCrawler {
 	 * @throws ParseException
 	 */
 	@Override
-	public void visit(Page page) throws XPathExpressionException, IOException, SAXException,
-			ParserConfigurationException, SQLException, InterruptedException, ParseException {
-		url = page.getWebURL().getURL();
-		System.out.println("URL: " + url);
-		String[] wlAnalysis = readFile(Controller.wlAnaPath, StandardCharsets.UTF_8).split(",");
-		String[] wlCrawler = readFile(Controller.wlCrPath, StandardCharsets.UTF_8).split(",");
-
+	public void visit(Page page) {
 		try {
-			Class.forName("com.mysql.jdbc.Driver");
-		} catch (ClassNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		Connection connection = DriverManager.getConnection(
-				"jdbc:mysql://" + Controller.host + ":" + Controller.port + "/demo", "" + Controller.user,
-				"" + Controller.password);
-		Statement statement = connection.createStatement();
-		ResultSet res = statement.executeQuery("SELECT * FROM  visits");
-		res.next();
-		Controller.counter = res.getInt("visits");
-		Controller.counter++;
-		PreparedStatement sql = (PreparedStatement) connection
-				.prepareStatement("UPDATE visits SET visits =" + Controller.counter);
-		sql.executeUpdate();
+			url = page.getWebURL().getURL();
+			System.out.println("URL: " + url);
+			String[] wlAnalysis = readFile(Controller.wlAnaPath, StandardCharsets.UTF_8).split(",");
+			String[] wlCrawler = readFile(Controller.wlCrPath, StandardCharsets.UTF_8).split(",");
 
-		if (page.getParseData() instanceof HtmlParseData) {
-			HtmlParseData htmlParseData = (HtmlParseData) page.getParseData();
-			text = htmlParseData.getText();
-			// check text with whitelistCrawler
-			checkWhiteList(wlCrawler);
-			if (passed == false) {
-				return;
-			}
-			if (Controller.enableAlchemy) {
-				useAlchemy(wlAnalysis);
-			}
-			// check if crawler already made a run
 			try {
-				if (Controller.restart == false) {
-					ResultSet result = statement.executeQuery("SELECT * FROM  sources WHERE url ='" + url + "'");
-					result.next();
-					Controller.run = result.getInt("run");
-					Controller.restart = true;
-				}
-			} catch (java.sql.SQLException e) {
-				Controller.restart = true;
-				Controller.run = 1;
-				System.err.println(e.getStackTrace());
+				Class.forName("com.mysql.jdbc.Driver");
+			} catch (ClassNotFoundException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
 			}
-			System.out.println("Websites visited: " + Controller.counter);
+			Connection connection = DriverManager.getConnection(
+					"jdbc:mysql://" + Controller.host + ":" + Controller.port + "/demo", "" + Controller.user,
+					"" + Controller.password);
+			Statement statement = connection.createStatement();
+			ResultSet res = statement.executeQuery("SELECT * FROM  visits");
+			res.next();
+			Controller.counter = res.getInt("visits");
+			Controller.counter++;
+			PreparedStatement sql = (PreparedStatement) connection
+					.prepareStatement("UPDATE visits SET visits =" + Controller.counter);
+			sql.executeUpdate();
 
-			accessDB(connection, statement);
+			if (page.getParseData() instanceof HtmlParseData) {
+				HtmlParseData htmlParseData = (HtmlParseData) page.getParseData();
+				text = htmlParseData.getText();
+				// check text with whitelistCrawler
+				checkWhiteList(wlCrawler);
+				if (passed == false) {
+					return;
+				}
+				if (Controller.enableAlchemy) {
+					useAlchemy(wlAnalysis);
+				}
+				try {
+					if (Controller.restart == false) {
+						ResultSet result = statement.executeQuery("SELECT * FROM  sources WHERE url ='" + url + "'");
+						result.next();
+						Controller.run = result.getInt("run");
+						Controller.restart = true;
+					}
+				} catch (Exception e) {
+					Controller.restart = true;
+					Controller.run = 1;
+				}
+				System.out.println("Websites visited: " + Controller.counter);
+
+				accessDB(connection, statement);
+			}
+		} catch (IOException | SQLException | ParseException | InterruptedException ex) {
+			onUnhandledException(page.getWebURL(), ex);
 		}
 	}
 
@@ -286,7 +288,7 @@ public class MyCrawler extends WebCrawler {
 			}
 		} catch (com.mysql.jdbc.exceptions.jdbc4.MySQLIntegrityConstraintViolationException e) {
 			System.err.println(e.getStackTrace());
-		} catch (java.sql.SQLException e){
+		} catch (java.sql.SQLException e) {
 			System.err.println(e.getStackTrace());
 		}
 	}
