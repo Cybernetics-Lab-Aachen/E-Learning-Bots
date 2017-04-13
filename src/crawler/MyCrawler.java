@@ -87,8 +87,8 @@ public class MyCrawler extends WebCrawler {
 			String[] wlAnalysis = readFile(Controller.wlAnaPath, StandardCharsets.UTF_8).split(",");
 			String[] wlCrawler = readFile(Controller.wlCrPath, StandardCharsets.UTF_8).split(",");
 			Connection connection = DriverManager.getConnection(
-					"jdbc:mysql://" + Controller.host + ":" + Controller.port + "/demo", "" + Controller.user,
-					"" + Controller.password);
+					"jdbc:mysql://" + Controller.host + ":" + Controller.port + "/" + Controller.name + "",
+					"" + Controller.user, "" + Controller.password);
 			Statement statement = connection.createStatement();
 			ResultSet res = statement.executeQuery("SELECT * FROM  visits");
 			res.next();

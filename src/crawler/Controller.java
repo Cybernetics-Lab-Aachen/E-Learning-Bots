@@ -34,6 +34,7 @@ public class Controller {
 	static boolean restart = false;
 	static int run = 0;
 	static int restartEveryDays = 0;
+	static String name = "";
 
 	static {
 		try {
@@ -52,6 +53,8 @@ public class Controller {
 		final OptionSpec<Integer> portOption = parser.accepts("db_port").withRequiredArg().ofType(Integer.class)
 				.required();
 		final OptionSpec<String> userOption = parser.accepts("db_user").withRequiredArg().ofType(String.class)
+				.required();
+		final OptionSpec<String> nameOption = parser.accepts("db_name").withRequiredArg().ofType(String.class)
 				.required();
 		final OptionSpec<String> passwordOption = parser.accepts("db_pass").withRequiredArg().ofType(String.class)
 				.required();
@@ -74,6 +77,7 @@ public class Controller {
 		host = options.valueOf(hostOption);
 		port = options.valueOf(portOption);
 		user = options.valueOf(userOption);
+		name = options.valueOf(nameOption);
 		password = options.valueOf(passwordOption);
 		enableAlchemy = options.has("alchemy");
 		storeSources = options.has("store_sources");
@@ -119,8 +123,8 @@ public class Controller {
 
 	static void buildDB() throws SQLException {
 		Connection connection = DriverManager.getConnection(
-				"jdbc:mysql://" + Controller.host + ":" + Controller.port + "/demo", "" + Controller.user,
-				"" + Controller.password);
+				"jdbc:mysql://" + Controller.host + ":" + Controller.port + "/" + Controller.name + "",
+				"" + Controller.user, "" + Controller.password);
 		// create sources table
 		PreparedStatement sql = (PreparedStatement) connection.prepareStatement(
 				"CREATE TABLE IF NOT EXISTS `sources` (`sourceId` int(11) NOT NULL AUTO_INCREMENT, `url` text NOT NULL, `language` varchar(140) NOT NULL,  `time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,  `data` text NOT NULL,  `country` varchar(4) NOT NULL, `run` int(11) NOT NULL,  PRIMARY KEY (`sourceId`),  KEY `sourceId` (`sourceId`),  KEY `country` (`country`),  KEY `language` (`language`),  KEY `run` (`run`),  KEY `time` (`time`)) ENGINE=InnoDB DEFAULT CHARSET=utf8;");
