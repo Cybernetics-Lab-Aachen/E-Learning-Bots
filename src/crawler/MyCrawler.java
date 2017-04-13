@@ -33,9 +33,9 @@ import edu.uci.ics.crawler4j.parser.HtmlParseData;
 import edu.uci.ics.crawler4j.url.WebURL;
 
 public class MyCrawler extends WebCrawler {
-	private static final String ALCHEMY_KEY = System.getenv("ALCHEMY_KEY");
-	private static final String[] WHITELIST_CRAWLER = System.getenv("WHITELIST_CRAWLER").split(";");
-	private static final String[] WHITELIST_ANALYSIS = System.getenv("WHITELIST_ANALYSIS").split(";");
+	private static final String ALCHEMY_KEY = System.getenv("CRAWLER_ALCHEMY_KEY");
+	private static final String[] WHITELIST_CRAWLER = System.getenv("CRAWLER_WHITELIST_CRAWLER").split(";");
+	private static final String[] WHITELIST_ANALYSIS = System.getenv("CRAWLER_WHITELIST_ANALYSIS").split(";");
 
 	SimpleDateFormat timeFormat = new SimpleDateFormat("yyyyMMdd_HHmmss");
 	private final static Pattern FILTERS = Pattern.compile(".*(\\.(css|js|gif|jpg" + "|png|mp3|mp3|zip|gz))$");
