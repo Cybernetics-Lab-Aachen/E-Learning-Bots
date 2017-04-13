@@ -19,7 +19,7 @@ ADD ./run.sh .
 # Compile and mark script as executable
 RUN \
 	javac -sourcepath . -cp crawler4j-4.3.jar:json-20160810.jar:mysql-connector-java-5.1.6.jar:mariadb-java-client-1.5.9.jar:jopt-simple-6.0-alpha-1.jar crawler/Controller.java && \
-	chmod 0777 /home/run.sh
+	chmod 0777 run.sh
 
 VOLUME /usr/src/e-learning-bots/crawl-storage
 CMD ["./run.sh"]
