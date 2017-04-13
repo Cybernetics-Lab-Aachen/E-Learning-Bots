@@ -1,15 +1,9 @@
 package crawler;
 
-import java.io.IOException;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 
 import com.mysql.jdbc.PreparedStatement;
 
@@ -23,15 +17,13 @@ import joptsimple.OptionSet;
 import joptsimple.OptionSpec;
 
 public class Controller {
-	static int counter = 0;
+	private static final String[] SEEDS = System.getenv("SEEDS").split(";");
 	static String host = "";
 	static int port;
 	static String user = "";
 	static String password = "";
 	static boolean enableAlchemy = false;
 	static boolean storeSources = false;
-	static String wlAnaPath = "";
-	static String wlCrPath = "";
 	static boolean restart = false;
 	static int run = 0;
 	static int restartEveryDays = 0;
@@ -61,12 +53,6 @@ public class Controller {
 				.required();
 		parser.accepts("alchemy");
 		parser.accepts("store_sources");
-		final OptionSpec<String> wlAnaPathOption = parser.accepts("alchemy_whitelist").requiredIf("alchemy")
-				.withRequiredArg().ofType(String.class);
-		final OptionSpec<String> wlCrPathOption = parser.accepts("crawler_whitelist").withRequiredArg()
-				.ofType(String.class).required();
-		final OptionSpec<String> seedPathOption = parser.accepts("seed").withRequiredArg().ofType(String.class)
-				.required();
 		final OptionSpec<String> crawlStorageFolderOption = parser.accepts("crawl_storage").withRequiredArg()
 				.ofType(String.class).required();
 		final OptionSpec<Integer> numberOfCrawlersOption = parser.accepts("number_of_crawlers").withRequiredArg()
@@ -82,9 +68,6 @@ public class Controller {
 		password = options.valueOf(passwordOption);
 		enableAlchemy = options.has("alchemy");
 		storeSources = options.has("store_sources");
-		wlAnaPath = options.valueOf(wlAnaPathOption);
-		wlCrPath = options.valueOf(wlCrPathOption);
-		String seedPath = options.valueOf(seedPathOption);
 		String crawlStorageFolder = options.valueOf(crawlStorageFolderOption);
 		int numberOfCrawlers = options.valueOf(numberOfCrawlersOption);
 		restartEveryDays = options.valueOf(restartEveryDaysOption);
@@ -98,7 +81,6 @@ public class Controller {
 		config.setCrawlStorageFolder(crawlStorageFolder);
 		config.setIncludeHttpsPages(true);
 		config.setResumableCrawling(true);
-		String[] seeds = readFile(seedPath, StandardCharsets.UTF_8).split(",");
 		/*
 		 * Instantiate the controller for this crawl.
 		 */
@@ -112,8 +94,8 @@ public class Controller {
 		 * URLs that are fetched and then the crawler starts following links
 		 * which are found in these pages
 		 */
-		for (int i = 0; i < seeds.length; i++) {
-			controller.addSeed(seeds[i]);
+		for (int i = 0; i < SEEDS.length; i++) {
+			controller.addSeed(SEEDS[i]);
 		}
 		/*
 		 * Start the crawl. This is a blocking operation, meaning that your code
@@ -159,8 +141,4 @@ public class Controller {
 		}
 	}
 
-	static String readFile(String path, Charset encoding) throws IOException {
-		byte[] encoded = Files.readAllBytes(Paths.get(path));
-		return new String(encoded, encoding);
-	}
 }

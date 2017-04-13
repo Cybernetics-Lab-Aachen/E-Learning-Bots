@@ -6,7 +6,6 @@ import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.net.URL;
 import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.sql.Connection;
@@ -35,19 +34,9 @@ import edu.uci.ics.crawler4j.url.WebURL;
 
 public class MyCrawler extends WebCrawler {
 	private static final String ALCHEMY_KEY = System.getenv("ALCHEMY_KEY");
+	private static final String[] WHITELIST_CRAWLER = System.getenv("WHITELIST_CRAWLER").split(";");
+	private static final String[] WHITELIST_ANALYSIS = System.getenv("WHITELIST_ANALYSIS").split(";");
 
-	// source attributes
-	String sourceURL = "";
-	String language = "";
-	// entities attributes
-	String[] entity = new String[7];
-	// keywords attributes
-	String[] keywords = new String[8];
-	// concepts attributes
-	String[] concepts = new String[4];
-	String text = "";
-	String url = "";
-	boolean passed = false;
 	SimpleDateFormat timeFormat = new SimpleDateFormat("yyyyMMdd_HHmmss");
 	private final static Pattern FILTERS = Pattern.compile(".*(\\.(css|js|gif|jpg" + "|png|mp3|mp3|zip|gz))$");
 
@@ -82,56 +71,57 @@ public class MyCrawler extends WebCrawler {
 	@Override
 	public void visit(Page page) {
 		try {
-			url = page.getWebURL().getURL();
-			System.out.println("URL: " + url);
-			String[] wlAnalysis = readFile(Controller.wlAnaPath, StandardCharsets.UTF_8).split(",");
-			String[] wlCrawler = readFile(Controller.wlCrPath, StandardCharsets.UTF_8).split(",");
+			alchemyResults gatheredData = new alchemyResults();
+			boolean passed = true;
+			gatheredData.setUrl(page.getWebURL().getURL());
+			System.out.println("URL: " + gatheredData.getUrl());
 			Connection connection = DriverManager.getConnection(
 					"jdbc:mysql://" + Controller.host + ":" + Controller.port + "/" + Controller.name + "",
 					"" + Controller.user, "" + Controller.password);
 			Statement statement = connection.createStatement();
-			ResultSet res = statement.executeQuery("SELECT * FROM  visits");
-			res.next();
-			Controller.counter = res.getInt("visits");
-			Controller.counter++;
+			ResultSet res1 = statement.executeQuery("SELECT * FROM  visits");
+			res1.next();
+			int counter = res1.getInt("visits");
+			counter++;
 			PreparedStatement sql = (PreparedStatement) connection
-					.prepareStatement("UPDATE visits SET visits =" + Controller.counter);
+					.prepareStatement("UPDATE visits SET visits =" + counter);
 			sql.executeUpdate();
 
 			if (page.getParseData() instanceof HtmlParseData) {
 				HtmlParseData htmlParseData = (HtmlParseData) page.getParseData();
-				text = htmlParseData.getText();
+				gatheredData.setText(htmlParseData.getText());
 				// check text with whitelistCrawler
-				checkWhiteList(wlCrawler);
+				checkWhiteList(WHITELIST_CRAWLER, passed, gatheredData.getText());
 				if (passed == false) {
 					return;
 				}
 				if (Controller.enableAlchemy) {
-					useAlchemy(wlAnalysis);
+					useAlchemy(WHITELIST_ANALYSIS, gatheredData);
 				}
 				try {
 					if (Controller.restart == false) {
-						ResultSet result = statement.executeQuery("SELECT * FROM  sources WHERE url ='" + url + "'");
-						result.next();
-						Controller.run = result.getInt("run");
+						ResultSet res2 = statement
+								.executeQuery("SELECT * FROM  sources WHERE url ='" + gatheredData.getUrl() + "'");
+						res2.next();
+						Controller.run = res2.getInt("run");
 						Controller.restart = true;
 					}
 				} catch (Exception e) {
 					Controller.restart = true;
 					Controller.run = 1;
 				}
-				System.out.println("Websites visited: " + Controller.counter);
-				accessDB(connection, statement);
+				accessDB(connection, statement, gatheredData);
 			}
 		} catch (IOException | SQLException | ParseException | InterruptedException ex) {
 			onUnhandledException(page.getWebURL(), ex);
 		}
 	}
 
-	public void useAlchemy(String[] whiteList) throws InterruptedException, UnsupportedEncodingException, IOException {
+	public void useAlchemy(String[] whiteList, alchemyResults gatheredData)
+			throws InterruptedException, UnsupportedEncodingException, IOException {
 		// access Alchemy to receive JSon containing keywords, entities and
 		// concepts
-		URL urls = new URL("https://gateway-a.watsonplatform.net/calls/url/URLGetCombinedData?url=" + url
+		URL urls = new URL("https://gateway-a.watsonplatform.net/calls/url/URLGetCombinedData?url=" + gatheredData.getUrl()
 				+ "&outputMode=json&extract=keywords,entities,concepts&sentiment=1&maxRetrieve=3&apikey="
 				+ ALCHEMY_KEY);
 
@@ -143,7 +133,7 @@ public class MyCrawler extends WebCrawler {
 
 			}
 		}
-		parseJson(alchemy);
+		parseJson(alchemy, gatheredData);
 		// pause till next day if daily limit(about 300 accesses) is
 		// exceeded
 		if (alchemy.contains("daily-transaction-limit-exceeded")) {
@@ -155,8 +145,8 @@ public class MyCrawler extends WebCrawler {
 		}
 
 		// check analysis with whitelistAnalysis
-		passed = false;
-		checkWhiteList(whiteList);
+		boolean passed = true;
+		checkWhiteList(whiteList, passed, gatheredData.getText());
 		if (passed == false) {
 			return;
 		}
@@ -167,7 +157,8 @@ public class MyCrawler extends WebCrawler {
 		return new String(encoded, encoding);
 	}
 
-	public void accessDB(Connection connection, Statement statement) throws SQLException, ParseException {
+	public void accessDB(Connection connection, Statement statement, alchemyResults gatheredData)
+			throws SQLException, ParseException {
 		// receiving current timestamp
 		SimpleDateFormat timeFormat = new SimpleDateFormat("yyyyMMdd_HHmmss");
 		timeFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
@@ -178,15 +169,12 @@ public class MyCrawler extends WebCrawler {
 
 		try (PreparedStatement sql = (PreparedStatement) connection.prepareStatement(
 				"INSERT INTO sources (url, language, time, data, country, run)" + " VALUES (?,?,?,?,?,?)");) {
-			if (Controller.enableAlchemy) {
-				sql.setString(1, sourceURL);
-			} else {
-				sql.setString(1, url);
-			}
-			sql.setString(2, language);
+
+			sql.setString(1, gatheredData.getUrl());
+			sql.setString(2, gatheredData.getLanguage());
 			sql.setTimestamp(3, timestamp);
 			if (Controller.storeSources) {
-				sql.setString(4, text);
+				sql.setString(4, gatheredData.getText());
 			} else {
 				sql.setString(4, "");
 			}
@@ -196,23 +184,23 @@ public class MyCrawler extends WebCrawler {
 		}
 		System.out.println("Updated sources");
 		try {
-			ResultSet res = statement.executeQuery(
-					"SELECT * FROM  sources where url = '" + sourceURL + "' AND run ='" + Controller.run + "'");
+			ResultSet res = statement.executeQuery("SELECT * FROM  sources where url = '" + gatheredData.getUrl()
+					+ "' AND run ='" + Controller.run + "'");
 			res.next();
 			int id = res.getInt("sourceId");
 
-			for (int i = 0; i < concepts.length;) {
-				if (concepts[1] != "") {
+			for (int i = 0; i < gatheredData.getConcepts().length;) {
+				if (gatheredData.getConcept(1) != "") {
 					try (PreparedStatement sql = (PreparedStatement) connection.prepareStatement(
 							"INSERT INTO concepts (text, relevance, website_Link, dbpedia_Link, sourcesID)"
 									+ " VALUES (?,?,?,?,?)");) {
-						sql.setString(1, concepts[i]);
+						sql.setString(1, gatheredData.getConcept(i));
 						i++;
-						sql.setDouble(2, Double.parseDouble(concepts[i]));
+						sql.setDouble(2, Double.parseDouble(gatheredData.getConcept(i)));
 						i++;
-						sql.setString(3, concepts[i]);
+						sql.setString(3, gatheredData.getConcept(i));
 						i++;
-						sql.setString(4, concepts[i]);
+						sql.setString(4, gatheredData.getConcept(i));
 						i++;
 						sql.setInt(5, id);
 						sql.executeUpdate();
@@ -222,26 +210,26 @@ public class MyCrawler extends WebCrawler {
 					i = 4;
 				}
 			}
-			for (int i = 0; i < keywords.length;) {
-				if (keywords[0] != "" && keywords[1] != "") {
+			for (int i = 0; i < gatheredData.getKeywords().length;) {
+				if (gatheredData.getKeyword(0) != "" && gatheredData.getKeyword(1) != "") {
 					try (PreparedStatement sql = (PreparedStatement) connection.prepareStatement(
 							"INSERT INTO keywords (relevance, sentiment, text, anger, disgust, fear, joy, sadness, sourcesID)"
 									+ " VALUES (?,?,?,?,?,?,?,?,?)");) {
-						sql.setDouble(1, Double.parseDouble(keywords[i]));
+						sql.setDouble(1, Double.parseDouble(gatheredData.getKeyword(i)));
 						i++;
-						sql.setDouble(2, Double.parseDouble(keywords[i]));
+						sql.setDouble(2, Double.parseDouble(gatheredData.getKeyword(i)));
 						i++;
-						sql.setString(3, keywords[i]);
+						sql.setString(3, gatheredData.getKeyword(i));
 						i++;
-						sql.setDouble(4, Double.parseDouble(keywords[i]));
+						sql.setDouble(4, Double.parseDouble(gatheredData.getKeyword(i)));
 						i++;
-						sql.setDouble(5, Double.parseDouble(keywords[i]));
+						sql.setDouble(5, Double.parseDouble(gatheredData.getKeyword(i)));
 						i++;
-						sql.setDouble(6, Double.parseDouble(keywords[i]));
+						sql.setDouble(6, Double.parseDouble(gatheredData.getKeyword(i)));
 						i++;
-						sql.setDouble(7, Double.parseDouble(keywords[i]));
+						sql.setDouble(7, Double.parseDouble(gatheredData.getKeyword(i)));
 						i++;
-						sql.setDouble(8, Double.parseDouble(keywords[i]));
+						sql.setDouble(8, Double.parseDouble(gatheredData.getKeyword(i)));
 						i++;
 						sql.setInt(9, id);
 						sql.executeUpdate();
@@ -251,24 +239,25 @@ public class MyCrawler extends WebCrawler {
 					i = 3;
 				}
 			}
-			for (int i = 0; i < entity.length;) {
-				if (entity[1] != "" && entity[2] != "" && entity[3] != "") {
+			for (int i = 0; i < gatheredData.getEntities().length;) {
+				if (gatheredData.getEntity(1) != "" && gatheredData.getEntity(2) != ""
+						&& gatheredData.getEntity(3) != "") {
 					try (PreparedStatement sql = (PreparedStatement) connection.prepareStatement(
 							"INSERT INTO entities (type, relevance, sentiment, count, text, website_Link, dbpedia_Link, sourcesID)"
 									+ " VALUES (?,?,?,?,?,?,?,?)");) {
-						sql.setString(1, entity[i]);
+						sql.setString(1, gatheredData.getEntity(i));
 						i++;
-						sql.setDouble(2, Double.parseDouble(entity[i]));
+						sql.setDouble(2, Double.parseDouble(gatheredData.getEntity(i)));
 						i++;
-						sql.setDouble(3, Double.parseDouble(entity[i]));
+						sql.setDouble(3, Double.parseDouble(gatheredData.getEntity(i)));
 						i++;
-						sql.setInt(4, Integer.parseInt(entity[i]));
+						sql.setInt(4, Integer.parseInt(gatheredData.getEntity(i)));
 						i++;
-						sql.setString(5, entity[i]);
+						sql.setString(5, gatheredData.getEntity(i));
 						i++;
-						sql.setString(6, entity[i]);
+						sql.setString(6, gatheredData.getEntity(i));
 						i++;
-						sql.setString(7, entity[i]);
+						sql.setString(7, gatheredData.getEntity(i));
 						i++;
 						sql.setInt(8, id);
 						sql.executeUpdate();
@@ -285,8 +274,8 @@ public class MyCrawler extends WebCrawler {
 		}
 	}
 
-	public void parseJson(String alchemy) {
-		int a = 0;
+	public void parseJson(String alchemy, alchemyResults gatheredData) {
+		int arrayField = 0;
 		// source
 		/*
 		 * going through JSon step by step saving necessary data in String
@@ -297,33 +286,33 @@ public class MyCrawler extends WebCrawler {
 		 */
 		JSONObject json = new JSONObject(alchemy);
 		if (json.toString().contains("url")) {
-			sourceURL = json.get("url").toString();
+			gatheredData.setUrl(json.get("url").toString());
 		} else {
-			sourceURL = "";
+			gatheredData.setUrl("");
 		}
 		if (json.toString().contains("language")) {
-			language = json.get("language").toString();
+			gatheredData.setLanguage(json.get("language").toString());
 		} else {
-			language = "";
+			gatheredData.setLanguage("");
 		}
 		// entities
 		if (json.toString().contains("entities")) {
 			String ent = json.get("entities").toString();
 			if (ent.contains("[]")) {
-				entity[a] = "";
-				a++;
-				entity[a] = "";
-				a++;
-				entity[a] = "";
-				a++;
-				entity[a] = "";
-				a++;
-				entity[a] = "0";
-				a++;
-				entity[a] = "";
-				a++;
-				entity[a] = "0";
-				a++;
+				gatheredData.setEntity("", arrayField);
+				arrayField++;
+				gatheredData.setEntity("", arrayField);
+				arrayField++;
+				gatheredData.setEntity("", arrayField);
+				arrayField++;
+				gatheredData.setEntity("", arrayField);
+				arrayField++;
+				gatheredData.setEntity("0", arrayField);
+				arrayField++;
+				gatheredData.setEntity("", arrayField);
+				arrayField++;
+				gatheredData.setEntity("0", arrayField);
+				arrayField++;
 			} else {
 				// preparing String ent to be used for JSONObject
 				if (ent.startsWith("[") && ent.endsWith("]")) {
@@ -338,113 +327,113 @@ public class MyCrawler extends WebCrawler {
 					}
 				}
 				// setting 7 fields for each entity
-				entity = new String[entArray.length * 7];
+				gatheredData.setEntities(new String[entArray.length * 7]);
 				for (int i = 0; i < entArray.length; i++) {
 					JSONObject entities = new JSONObject(entArray[i]);
 					if (entities.toString().contains("type")) {
-						entity[a] = entities.getString("type");
+						gatheredData.setEntity(entities.getString("type"), arrayField);
 					} else {
-						entity[a] = "";
+						gatheredData.setEntity("", arrayField);
 					}
-					a++;
+					arrayField++;
 
 					if (entities.toString().contains("relevance")) {
-						entity[a] = "" + entities.getDouble("relevance");
+						gatheredData.setEntity("" + entities.getDouble("relevance"), arrayField);
 					} else {
-						entity[a] = "0";
+						gatheredData.setEntity("0", arrayField);
 					}
-					a++;
+					arrayField++;
 					if (entities.toString().contains("sentiment")) {
 						String entSentiment = entities.get("sentiment").toString();
 						JSONObject entitiesSentiment = new JSONObject(entSentiment);
 						if (entitiesSentiment.toString().contains("type")) {
 							String entSentType = entitiesSentiment.get("type").toString();
 							if (entSentType != "neutral" && entitiesSentiment.toString().contains("score")) {
-								entity[a] = "" + entitiesSentiment.getDouble("score");
+								gatheredData.setEntity("" + entitiesSentiment.getDouble("score"), arrayField);
 							} else {
-								entity[a] = "0";
+								gatheredData.setEntity("0", arrayField);
 							}
 						} else {
-							entity[a] = "0";
+							gatheredData.setEntity("0", arrayField);
 						}
-						a++;
+						arrayField++;
 					} else {
-						entity[a] = "0";
-						a++;
+						gatheredData.setEntity("0", arrayField);
+						arrayField++;
 					}
 					if (entities.toString().contains("count")) {
-						entity[a] = "" + entities.getInt("count");
+						gatheredData.setEntity("" + entities.getInt("count"), arrayField);
 					} else {
-						entity[a] = "0";
+						gatheredData.setEntity("0", arrayField);
 					}
-					a++;
+					arrayField++;
 					if (entities.toString().contains("text")) {
-						entity[a] = entities.getString("text");
+						gatheredData.setEntity(entities.getString("text"), arrayField);
 					} else {
-						entity[a] = "";
+						gatheredData.setEntity("", arrayField);
 					}
-					a++;
+					arrayField++;
 					if (entities.toString().contains("disambiguated")) {
 						String entLink = entities.get("disambiguated").toString();
 						JSONObject entLinks = new JSONObject(entLink);
 						if (entLinks.toString().contains("website")) {
-							entity[a] = entLinks.getString("website");
+							gatheredData.setEntity(entLinks.getString("website"), arrayField);
 						} else {
-							entity[a] = "";
+							gatheredData.setEntity("", arrayField);
 						}
-						a++;
+						arrayField++;
 						if (entLinks.toString().contains("dbpedia")) {
-							entity[a] = entLinks.getString("dbpedia");
+							gatheredData.setEntity(entLinks.getString("dbpedia"), arrayField);
 						} else {
-							entity[a] = "";
+							gatheredData.setEntity("", arrayField);
 						}
-						a++;
+						arrayField++;
 					} else {
-						entity[a] = "";
-						a++;
-						entity[a] = "";
-						a++;
+						gatheredData.setEntity("", arrayField);
+						arrayField++;
+						gatheredData.setEntity("", arrayField);
+						arrayField++;
 					}
 				}
 			}
 		} else {
-			entity[a] = "";
-			a++;
-			entity[a] = "";
-			a++;
-			entity[a] = "";
-			a++;
-			entity[a] = "";
-			a++;
-			entity[a] = "0";
-			a++;
-			entity[a] = "";
-			a++;
-			entity[a] = "0";
-			a++;
+			gatheredData.setEntity("", arrayField);
+			arrayField++;
+			gatheredData.setEntity("", arrayField);
+			arrayField++;
+			gatheredData.setEntity("", arrayField);
+			arrayField++;
+			gatheredData.setEntity("", arrayField);
+			arrayField++;
+			gatheredData.setEntity("0", arrayField);
+			arrayField++;
+			gatheredData.setEntity("", arrayField);
+			arrayField++;
+			gatheredData.setEntity("0", arrayField);
+			arrayField++;
 		}
 		// keywords
 		// missing emotions will be saved as -10 to be easy to identify later
-		a = 0;
+		arrayField = 0;
 		if (json.toString().contains("keywords")) {
 			String key = json.get("keywords").toString();
 			if (key.contains("[]")) {
-				keywords[a] = "";
-				a++;
-				keywords[a] = "";
-				a++;
-				keywords[a] = "0";
-				a++;
-				keywords[a] = "" + -10;
-				a++;
-				keywords[a] = "" + -10;
-				a++;
-				keywords[a] = "" + -10;
-				a++;
-				keywords[a] = "" + -10;
-				a++;
-				keywords[a] = "" + -10;
-				a++;
+				gatheredData.setKeyword("", arrayField);
+				arrayField++;
+				gatheredData.setKeyword("", arrayField);
+				arrayField++;
+				gatheredData.setKeyword("0", arrayField);
+				arrayField++;
+				gatheredData.setKeyword("" + -10, arrayField);
+				arrayField++;
+				gatheredData.setKeyword("" + -10, arrayField);
+				arrayField++;
+				gatheredData.setKeyword("" + -10, arrayField);
+				arrayField++;
+				gatheredData.setKeyword("" + -10, arrayField);
+				arrayField++;
+				gatheredData.setKeyword("" + -10, arrayField);
+				arrayField++;
 			} else {
 				// preparing String key to be used for JSONObject
 				key = key.substring(1, key.length() - 1);
@@ -457,106 +446,106 @@ public class MyCrawler extends WebCrawler {
 					}
 				}
 				// setting 8 fields for each keyword
-				keywords = new String[keyArray.length * 8];
+				gatheredData.setKeywords(new String[keyArray.length * 8]);
 				for (int i = 0; i < keyArray.length; i++) {
 					JSONObject keyword = new JSONObject(keyArray[i]);
 					if (keyword.toString().contains("relevance")) {
-						keywords[a] = keyword.getString("relevance");
+						gatheredData.setKeyword(keyword.getString("relevance"), arrayField);
 					} else {
-						keywords[a] = "0";
+						gatheredData.setKeyword("0", arrayField);
 					}
 					JSONObject keySentiment = new JSONObject(keyword.get("sentiment").toString());
-					a++;
+					arrayField++;
 					if (keySentiment.toString().contains("score")) {
-						keywords[a] = keySentiment.getString("score");
+						gatheredData.setKeyword(keySentiment.getString("score"), arrayField);
 					} else {
-						keywords[a] = "0";
+						gatheredData.setKeyword("0", arrayField);
 					}
-					a++;
+					arrayField++;
 					if (keyword.toString().contains("text")) {
-						keywords[a] = keyword.getString("text");
+						gatheredData.setKeyword(keyword.getString("text"), arrayField);
 					} else {
-						keywords[a] = "";
+						gatheredData.setKeyword("", arrayField);
 					}
-					a++;
+					arrayField++;
 					if (keyword.toString().contains("emotions")) {
 						String emotion = keyword.get("emotions").toString();
 						JSONObject emotions = new JSONObject(emotion);
 						if (emotion.contains("anger")) {
-							keywords[a] = emotions.getString("anger");
+							gatheredData.setKeyword(emotions.getString("anger"), arrayField);
 						} else {
-							keywords[a] = "" + -10;
+							gatheredData.setKeyword("" + -10, arrayField);
 						}
-						a++;
+						arrayField++;
 						if (emotion.contains("disgust")) {
-							keywords[a] = emotions.getString("disgust");
+							gatheredData.setKeyword(emotions.getString("disgust"), arrayField);
 						} else {
-							keywords[a] = "" + -10;
+							gatheredData.setKeyword("" + -10, arrayField);
 						}
-						a++;
+						arrayField++;
 						if (emotion.contains("fear")) {
-							keywords[a] = emotions.getString("fear");
+							gatheredData.setKeyword(emotions.getString("fear"), arrayField);
 						} else {
-							keywords[a] = "" + -10;
+							gatheredData.setKeyword("" + -10, arrayField);
 						}
-						a++;
+						arrayField++;
 						if (emotion.contains("joy")) {
-							keywords[a] = emotions.getString("joy");
+							gatheredData.setKeyword(emotions.getString("joy"), arrayField);
 						} else {
-							keywords[a] = "" + -10;
+							gatheredData.setKeyword("" + -10, arrayField);
 						}
-						a++;
+						arrayField++;
 						if (emotion.contains("sadness")) {
-							keywords[a] = emotions.getString("sadness");
+							gatheredData.setKeyword(emotions.getString("sadness"), arrayField);
 						} else {
-							keywords[a] = "" + -10;
+							gatheredData.setKeyword("" + -10, arrayField);
 						}
-						a++;
+						arrayField++;
 					} else {
-						keywords[a] = "" + -10;
-						a++;
-						keywords[a] = "" + -10;
-						a++;
-						keywords[a] = "" + -10;
-						a++;
-						keywords[a] = "" + -10;
-						a++;
-						keywords[a] = "" + -10;
-						a++;
+						gatheredData.setKeyword("" + -10, arrayField);
+						arrayField++;
+						gatheredData.setKeyword("" + -10, arrayField);
+						arrayField++;
+						gatheredData.setKeyword("" + -10, arrayField);
+						arrayField++;
+						gatheredData.setKeyword("" + -10, arrayField);
+						arrayField++;
+						gatheredData.setKeyword("" + -10, arrayField);
+						arrayField++;
 					}
 				}
 			}
 		} else {
-			keywords[a] = "0";
-			a++;
-			keywords[a] = "0";
-			a++;
-			keywords[a] = "";
-			a++;
-			keywords[a] = "" + -10;
-			a++;
-			keywords[a] = "" + -10;
-			a++;
-			keywords[a] = "" + -10;
-			a++;
-			keywords[a] = "" + -10;
-			a++;
-			keywords[a] = "" + -10;
-			a++;
+			gatheredData.setKeyword("", arrayField);
+			arrayField++;
+			gatheredData.setKeyword("", arrayField);
+			arrayField++;
+			gatheredData.setKeyword("0", arrayField);
+			arrayField++;
+			gatheredData.setKeyword("" + -10, arrayField);
+			arrayField++;
+			gatheredData.setKeyword("" + -10, arrayField);
+			arrayField++;
+			gatheredData.setKeyword("" + -10, arrayField);
+			arrayField++;
+			gatheredData.setKeyword("" + -10, arrayField);
+			arrayField++;
+			gatheredData.setKeyword("" + -10, arrayField);
+			arrayField++;
 		}
 		// concepts
-		a = 0;
+		arrayField = 0;
 		if (json.toString().contains("concepts")) {
 			String con = json.get("concepts").toString();
 			if (con.contains("[]")) {
-				concepts[a] = "";
-				a++;
-				concepts[a] = "";
-				a++;
-				concepts[a] = "";
-				a++;
-				concepts[a] = "";
-				a++;
+				gatheredData.setConcept("", arrayField);
+				arrayField++;
+				gatheredData.setConcept("0", arrayField);
+				arrayField++;
+				gatheredData.setConcept("", arrayField);
+				arrayField++;
+				gatheredData.setConcept("", arrayField);
+				arrayField++;
 			} else {
 				// preparing String con to be used for JSONObject
 				con = con.substring(1, con.length() - 1);
@@ -569,54 +558,54 @@ public class MyCrawler extends WebCrawler {
 					}
 				}
 				// setting for fields for each concept
-				concepts = new String[conArray.length * 4];
+				gatheredData.setConcepts(new String[conArray.length * 4]);
 				for (int i = 0; i < conArray.length; i++) {
 
 					JSONObject concept = new JSONObject(conArray[i]);
 					if (concept.toString().contains("text")) {
-						concepts[a] = concept.getString("text");
+						gatheredData.setConcept(concept.getString("text"), arrayField);
 					} else {
-						concepts[a] = "";
+						gatheredData.setConcept("", arrayField);
 					}
-					a++;
+					arrayField++;
 					if (concept.toString().contains("relevance")) {
-						concepts[a] = concept.getString("relevance");
+						gatheredData.setConcept(concept.getString("relevance"), arrayField);
 					} else {
-						concepts[a] = "0";
+						gatheredData.setConcept("0", arrayField);
 					}
-					a++;
+					arrayField++;
 					if (concept.toString().contains("website")) {
-						concepts[a] = concept.getString("website");
+						gatheredData.setConcept(concept.getString("website"), arrayField);
 					} else {
-						concepts[a] = "";
+						gatheredData.setConcept("", arrayField);
 					}
-					a++;
+					arrayField++;
 					if (concept.toString().contains("dbpedia")) {
-						concepts[a] = concept.getString("dbpedia");
+						gatheredData.setConcept(concept.getString("dbpedia"), arrayField);
 					} else {
-						concepts[a] = "";
+						gatheredData.setConcept("", arrayField);
 					}
-					a++;
+					arrayField++;
 				}
 			}
 		} else {
-			concepts[a] = "";
-			a++;
-			concepts[a] = "0";
-			a++;
-			concepts[a] = "";
-			a++;
-			concepts[a] = "";
-			a++;
+			gatheredData.setConcept("", arrayField);
+			arrayField++;
+			gatheredData.setConcept("0", arrayField);
+			arrayField++;
+			gatheredData.setConcept("", arrayField);
+			arrayField++;
+			gatheredData.setConcept("", arrayField);
+			arrayField++;
 		}
 	}
 
-	public void checkWhiteList(String[] whiteList) {
+	public boolean checkWhiteList(String[] whiteList, boolean passed, String text) {
 		for (int i = 0; i < whiteList.length; i++) {
 			if (text.toLowerCase().contains(whiteList[i].toLowerCase())) {
-				passed = true;
-				break;
+				return passed = true;
 			}
 		}
+		return passed;
 	}
 }
