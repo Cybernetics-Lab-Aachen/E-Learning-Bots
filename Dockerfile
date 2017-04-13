@@ -15,7 +15,8 @@ RUN \
 	wget http://central.maven.org/maven2/org/apache/tika/tika-parsers/1.14/tika-parsers-1.14.jar && \
 	wget http://central.maven.org/maven2/org/slf4j/slf4j-api/1.7.25/slf4j-api-1.7.25.jar && \
 	wget http://central.maven.org/maven2/commons-codec/commons-codec/1.10/commons-codec-1.10.jar && \
-	wget http://central.maven.org/maven2/commons-logging/commons-logging/1.2/commons-logging-1.2.jar
+	wget http://central.maven.org/maven2/commons-logging/commons-logging/1.2/commons-logging-1.2.jar && \
+	wget http://repo.boundlessgeo.com/main/com/sleepycat/je/5.0.84/je-5.0.84.jar
 
 # Add souce code
 ADD ./src .
