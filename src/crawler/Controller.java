@@ -17,7 +17,7 @@ import joptsimple.OptionSet;
 import joptsimple.OptionSpec;
 
 public class Controller {
-	private static final String[] SEEDS = System.getenv("SEEDS").split(";");
+	private static final String[] SEEDS = System.getenv("CRAWLER_SEEDS").split(";");
 	static String host = "";
 	static int port;
 	static String user = "";
