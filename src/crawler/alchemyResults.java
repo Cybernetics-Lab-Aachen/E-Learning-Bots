@@ -91,9 +91,5 @@ public class alchemyResults {
 	
 	public alchemyResults() {
 		super();
-		
-		
-
-		// TODO Auto-generated constructor stub
 	}
 }
