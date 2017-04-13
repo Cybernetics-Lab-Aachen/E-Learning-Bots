@@ -1,0 +1,2 @@
+#!/bin/bash
+java -cp crawler4j-4.3.jar:json-20160810.jar:mysql-connector-java-5.1.6.jar:mariadb-java-client-1.5.9.jar:jopt-simple-6.0-alpha-1.jar:. crawler.Controller --db_host=db --db_port=3306 --db_user=${MYSQL_USER} --db_pass=${MYSQL_PASSWORD} --db_name=${MYSQL_DATABASE} --crawl_storage="/usr/src/e-learning-bots/crawl-storage" --number_of_crawlers=1 --seed=seed.txt --restart_every_days=90 --crawler_whitelist=whitelist.txt
