@@ -7,9 +7,6 @@ import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.net.URL;
 import java.net.URLConnection;
-import java.nio.charset.Charset;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -73,7 +70,7 @@ public class MyCrawler extends WebCrawler {
 	@Override
 	public void visit(Page page) {
 		try {
-			alchemyResults gatheredData = new alchemyResults();
+			AlchemyResults gatheredData = new AlchemyResults();
 			boolean passed = false;
 			gatheredData.setUrl(page.getWebURL().getURL());
 			System.out.println("URL: " + gatheredData.getUrl());
@@ -133,7 +130,7 @@ public class MyCrawler extends WebCrawler {
 		}
 	}
 
-	public void useAlchemy(String[] whiteList, alchemyResults gatheredData)
+	public void useAlchemy(String[] whiteList, AlchemyResults gatheredData)
 			throws InterruptedException, UnsupportedEncodingException, IOException {
 		// access Alchemy to receive JSon containing keywords, entities and
 		// concepts
@@ -150,7 +147,7 @@ public class MyCrawler extends WebCrawler {
 
 			}
 		}
-		parseJson(alchemy, gatheredData);
+		gatheredData = parseJson(alchemy, gatheredData.getText());
 		// pause till next day if daily limit(about 300 accesses) is
 		// exceeded
 		if (alchemy.contains("daily-transaction-limit-exceeded")) {
@@ -169,12 +166,7 @@ public class MyCrawler extends WebCrawler {
 		}
 	}
 
-	static String readFile(String path, Charset encoding) throws IOException {
-		byte[] encoded = Files.readAllBytes(Paths.get(path));
-		return new String(encoded, encoding);
-	}
-
-	public void accessDB(Connection connection, Statement statement, alchemyResults gatheredData)
+	public void accessDB(Connection connection, Statement statement, AlchemyResults gatheredData)
 			throws SQLException, ParseException {
 		// receiving current timestamp
 		SimpleDateFormat timeFormat = new SimpleDateFormat("yyyyMMdd_HHmmss");
@@ -291,7 +283,9 @@ public class MyCrawler extends WebCrawler {
 		}
 	}
 
-	public void parseJson(String alchemy, alchemyResults gatheredData) {
+	public AlchemyResults parseJson(String alchemy, String text ) {
+		AlchemyResults gatheredData = new AlchemyResults();
+		gatheredData.setText(text);
 		int arrayField = 0;
 		// source
 		/*
@@ -615,6 +609,7 @@ public class MyCrawler extends WebCrawler {
 			gatheredData.setConcept("", arrayField);
 			arrayField++;
 		}
+		return gatheredData;
 	}
 
 	public boolean checkWhiteList(String[] whiteList, boolean passed, String text) {

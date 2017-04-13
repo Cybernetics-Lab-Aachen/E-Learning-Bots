@@ -1,8 +1,8 @@
 package crawler;
 
-public class alchemyResults {
+public class AlchemyResults {
 	// source attributes
-	String sourceURL = "";
+
 	String language = "";
 	String text = "";
 	String url = "";
@@ -12,14 +12,6 @@ public class alchemyResults {
 	String[] keywords = new String[8];
 	// concepts attributes
 	String[] concepts = new String[4];
-
-	public String getSourceURL() {
-		return sourceURL;
-	}
-
-	public void setSourceURL(String sourceURL) {
-		this.sourceURL = sourceURL;
-	}
 
 	public String getLanguage() {
 		return language;
@@ -89,7 +81,7 @@ public class alchemyResults {
 	}
 	
 	
-	public alchemyResults() {
+	public AlchemyResults() {
 		super();
 	}
 }
