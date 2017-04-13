@@ -28,6 +28,7 @@ public class Controller {
 	static int run = 0;
 	static int restartEveryDays = 0;
 	static String name = "";
+	static String kpiManagerURL = "";
 
 	static {
 		try {
@@ -51,14 +52,18 @@ public class Controller {
 				.required();
 		final OptionSpec<String> passwordOption = parser.accepts("db_pass").withRequiredArg().ofType(String.class)
 				.required();
-		parser.accepts("alchemy");
-		parser.accepts("store_sources");
+		final OptionSpec<Boolean> alchemyOption = parser.accepts("alchemy").withRequiredArg().ofType(Boolean.class)
+				.required();
+		final OptionSpec<Boolean> store_sourcesOption = parser.accepts("store_sources").withRequiredArg().ofType(Boolean.class)
+				.required();
 		final OptionSpec<String> crawlStorageFolderOption = parser.accepts("crawl_storage").withRequiredArg()
 				.ofType(String.class).required();
 		final OptionSpec<Integer> numberOfCrawlersOption = parser.accepts("number_of_crawlers").withRequiredArg()
 				.ofType(Integer.class).required();
 		final OptionSpec<Integer> restartEveryDaysOption = parser.accepts("restart_every_days").withRequiredArg()
 				.ofType(Integer.class).required();
+		final OptionSpec<String> KPIOption = parser.accepts("kpi_manager_url").withRequiredArg().ofType(String.class)
+				.required();
 
 		final OptionSet options = parser.parse(args);
 		host = options.valueOf(hostOption);
@@ -66,11 +71,12 @@ public class Controller {
 		user = options.valueOf(userOption);
 		name = options.valueOf(nameOption);
 		password = options.valueOf(passwordOption);
-		enableAlchemy = options.has("alchemy");
-		storeSources = options.has("store_sources");
+		enableAlchemy = options.valueOf(alchemyOption);
+		storeSources = options.valueOf(store_sourcesOption);
 		String crawlStorageFolder = options.valueOf(crawlStorageFolderOption);
 		int numberOfCrawlers = options.valueOf(numberOfCrawlersOption);
 		restartEveryDays = options.valueOf(restartEveryDaysOption);
+		kpiManagerURL = options.valueOf(KPIOption);
 
 		try {
 			buildDB();

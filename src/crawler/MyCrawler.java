@@ -2,9 +2,11 @@ package crawler;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.net.URL;
+import java.net.URLConnection;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -72,9 +74,16 @@ public class MyCrawler extends WebCrawler {
 	public void visit(Page page) {
 		try {
 			alchemyResults gatheredData = new alchemyResults();
-			boolean passed = true;
+			boolean passed = false;
 			gatheredData.setUrl(page.getWebURL().getURL());
 			System.out.println("URL: " + gatheredData.getUrl());
+			try {
+				String urlString = Controller.kpiManagerURL + "-visited";
+				URL url = new URL(urlString);
+				URLConnection conn = url.openConnection();
+				InputStream is = conn.getInputStream();
+			} catch (IOException e) {
+			}
 			Connection connection = DriverManager.getConnection(
 					"jdbc:mysql://" + Controller.host + ":" + Controller.port + "/" + Controller.name + "",
 					"" + Controller.user, "" + Controller.password);
@@ -91,9 +100,16 @@ public class MyCrawler extends WebCrawler {
 				HtmlParseData htmlParseData = (HtmlParseData) page.getParseData();
 				gatheredData.setText(htmlParseData.getText());
 				// check text with whitelistCrawler
-				checkWhiteList(WHITELIST_CRAWLER, passed, gatheredData.getText());
+				passed = checkWhiteList(WHITELIST_CRAWLER, passed, gatheredData.getText());
 				if (passed == false) {
 					return;
+				}
+				try {
+					String urlString = Controller.kpiManagerURL + "-stored";
+					URL url = new URL(urlString);
+					URLConnection conn = url.openConnection();
+					InputStream is = conn.getInputStream();
+				} catch (IOException e) {
 				}
 				if (Controller.enableAlchemy) {
 					useAlchemy(WHITELIST_ANALYSIS, gatheredData);
@@ -121,9 +137,10 @@ public class MyCrawler extends WebCrawler {
 			throws InterruptedException, UnsupportedEncodingException, IOException {
 		// access Alchemy to receive JSon containing keywords, entities and
 		// concepts
-		URL urls = new URL("https://gateway-a.watsonplatform.net/calls/url/URLGetCombinedData?url=" + gatheredData.getUrl()
-				+ "&outputMode=json&extract=keywords,entities,concepts&sentiment=1&maxRetrieve=3&apikey="
-				+ ALCHEMY_KEY);
+		URL urls = new URL(
+				"https://gateway-a.watsonplatform.net/calls/url/URLGetCombinedData?url=" + gatheredData.getUrl()
+						+ "&outputMode=json&extract=keywords,entities,concepts&sentiment=1&maxRetrieve=3&apikey="
+						+ ALCHEMY_KEY);
 
 		String alchemy = "";
 		try (BufferedReader reader = new BufferedReader(new InputStreamReader(urls.openStream(), "UTF-8"))) {
@@ -145,8 +162,8 @@ public class MyCrawler extends WebCrawler {
 		}
 
 		// check analysis with whitelistAnalysis
-		boolean passed = true;
-		checkWhiteList(whiteList, passed, gatheredData.getText());
+		boolean passed = false;
+		passed = checkWhiteList(whiteList, passed, gatheredData.getText());
 		if (passed == false) {
 			return;
 		}
@@ -603,7 +620,8 @@ public class MyCrawler extends WebCrawler {
 	public boolean checkWhiteList(String[] whiteList, boolean passed, String text) {
 		for (int i = 0; i < whiteList.length; i++) {
 			if (text.toLowerCase().contains(whiteList[i].toLowerCase())) {
-				return passed = true;
+				passed = true;
+				return passed;
 			}
 		}
 		return passed;
