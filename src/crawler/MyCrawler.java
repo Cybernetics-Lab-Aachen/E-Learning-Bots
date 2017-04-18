@@ -74,6 +74,9 @@ public class MyCrawler extends WebCrawler {
 			boolean passed = false;
 			gatheredData.setUrl(page.getWebURL().getURL());
 			System.out.println("URL: " + gatheredData.getUrl());
+			if(gatheredData.getUrl().contains("twitter.com")||gatheredData.getUrl().contains("facebook.com")||gatheredData.getUrl().contains("youtube.com")){
+				return;
+			}
 			try {
 				String urlString = Controller.kpiManagerURL + "-visited";
 				URL url = new URL(urlString);
