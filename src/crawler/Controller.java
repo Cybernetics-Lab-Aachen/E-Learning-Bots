@@ -2,7 +2,9 @@ package crawler;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 
 import com.mysql.jdbc.PreparedStatement;
 
@@ -36,7 +38,7 @@ public class Controller {
 			throw new AssertionError("Can't find mysql driver: ", ex);
 		}
 	}
-	
+
 	public static void main(String[] args) throws Exception {
 		// CLI stuff
 
@@ -53,8 +55,8 @@ public class Controller {
 				.required();
 		final OptionSpec<Boolean> alchemyOption = parser.accepts("alchemy").withRequiredArg().ofType(Boolean.class)
 				.required();
-		final OptionSpec<Boolean> store_sourcesOption = parser.accepts("store_sources").withRequiredArg().ofType(Boolean.class)
-				.required();
+		final OptionSpec<Boolean> store_sourcesOption = parser.accepts("store_sources").withRequiredArg()
+				.ofType(Boolean.class).required();
 		final OptionSpec<String> crawlStorageFolderOption = parser.accepts("crawl_storage").withRequiredArg()
 				.ofType(String.class).required();
 		final OptionSpec<Integer> numberOfCrawlersOption = parser.accepts("number_of_crawlers").withRequiredArg()
@@ -93,7 +95,7 @@ public class Controller {
 		RobotstxtConfig robotstxtConfig = new RobotstxtConfig();
 		RobotstxtServer robotstxtServer = new RobotstxtServer(robotstxtConfig, pageFetcher);
 		CrawlController controller = new CrawlController(config, pageFetcher, robotstxtServer);
-
+		getRowCount();
 		/*
 		 * For each crawl, you need to add some seed urls. These are the first
 		 * URLs that are fetched and then the crawler starts following links
@@ -132,4 +134,22 @@ public class Controller {
 		sql.close();
 	}
 
+	static int getRowCount() throws Exception {
+		try {
+			Connection connection = DriverManager.getConnection(
+					"jdbc:mysql://" + Controller.host + ":" + Controller.port + "/" + Controller.name + "",
+					"" + Controller.user, "" + Controller.password);
+			Statement statement = connection.createStatement();
+
+			ResultSet resultSet = statement.executeQuery("select * from testdb.emg");
+			int count = 0;
+			while (resultSet.next()) {
+				count++;
+			}
+			return count;
+		} catch (Exception e) {
+		}
+		return 0;
+
+	}
 }

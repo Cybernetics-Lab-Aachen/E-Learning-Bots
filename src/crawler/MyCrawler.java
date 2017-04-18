@@ -280,9 +280,9 @@ public class MyCrawler extends WebCrawler {
 				}
 			}
 		} catch (com.mysql.jdbc.exceptions.jdbc4.MySQLIntegrityConstraintViolationException e) {
-			System.err.println(e.getStackTrace());
+			System.out.println(e.getStackTrace());
 		} catch (java.sql.SQLException e) {
-			System.err.println(e.getStackTrace());
+			System.out.println(e.getStackTrace());
 		}
 		connection.close();
 	}
