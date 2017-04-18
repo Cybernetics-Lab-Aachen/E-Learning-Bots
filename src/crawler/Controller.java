@@ -2,7 +2,6 @@ package crawler;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 
 import com.mysql.jdbc.PreparedStatement;
@@ -118,10 +117,6 @@ public class Controller {
 		PreparedStatement sql = (PreparedStatement) connection.prepareStatement(
 				"CREATE TABLE IF NOT EXISTS `sources` (`sourceId` int(11) NOT NULL AUTO_INCREMENT, `url` text NOT NULL, `language` varchar(140) NOT NULL,  `time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,  `data` text NOT NULL,  `country` varchar(4) NOT NULL, `run` int(11) NOT NULL,  PRIMARY KEY (`sourceId`),  KEY `sourceId` (`sourceId`),  KEY `country` (`country`),  KEY `language` (`language`),  KEY `run` (`run`),  KEY `time` (`time`)) ENGINE=InnoDB DEFAULT CHARSET=utf8;");
 		sql.executeUpdate();
-		// create vivits table
-		sql = (PreparedStatement) connection.prepareStatement(
-				"CREATE TABLE IF NOT EXISTS `visits` (  `visits` int(11) NOT NULL,  PRIMARY KEY (`visits`),  UNIQUE KEY `visits` (`visits`)) ENGINE=InnoDB DEFAULT CHARSET=utf8;");
-		sql.executeUpdate();
 		// create keywords table
 		sql = (PreparedStatement) connection.prepareStatement(
 				"CREATE TABLE IF NOT EXISTS `keywords` (  `keywordsId` int(11) NOT NULL AUTO_INCREMENT,  `relevance` double NOT NULL,  `sentiment` double NOT NULL,  `text` varchar(255) NOT NULL,  `anger` double NOT NULL,  `disgust` double NOT NULL,  `fear` double NOT NULL,  `joy` double NOT NULL,  `sadness` double NOT NULL,  `sourcesID` int(11) NOT NULL,  PRIMARY KEY (`keywordsId`),  UNIQUE KEY `number_2` (`keywordsId`),  KEY `number` (`keywordsId`),  KEY `keywordsId` (`keywordsId`),  KEY `sourcesID` (`sourcesID`),  KEY `sourcesID_2` (`sourcesID`),  KEY `sadness` (`sadness`),  KEY `joy` (`joy`),  KEY `fear` (`fear`),  KEY `disgust` (`disgust`),  KEY `anger` (`anger`),  KEY `sentiment` (`sentiment`),  KEY `relevance` (`relevance`),  KEY `text` (`text`)) ENGINE=InnoDB DEFAULT CHARSET=utf8;");
@@ -134,21 +129,7 @@ public class Controller {
 		sql = (PreparedStatement) connection.prepareStatement(
 				"CREATE TABLE IF NOT EXISTS `concepts` (  `conceptsId` int(11) NOT NULL AUTO_INCREMENT,  `text` varchar(255) NOT NULL,  `relevance` double NOT NULL,  `website_Link` text NOT NULL,  `dbpedia_Link` text NOT NULL,  `sourcesID` int(11) NOT NULL,  PRIMARY KEY (`conceptsId`),  UNIQUE KEY `conceptsId` (`conceptsId`),  KEY `conceptsId_2` (`conceptsId`),  KEY `sourcesID` (`sourcesID`),  KEY `relevance` (`relevance`),  KEY `text` (`text`)) ENGINE=InnoDB DEFAULT CHARSET=utf8;");
 		sql.executeUpdate();
-		// check if visits has already an entry
-		try {
-			java.sql.Statement statement = connection.createStatement();
-			ResultSet res = statement.executeQuery("SELECT * FROM  visits");
-			res.next();
-			int test = res.getInt("visits");
-			res.close();
-			statement.close();
-		} catch (java.sql.SQLException e) {
-			sql = (PreparedStatement) connection.prepareStatement("INSERT INTO `visits` (`visits`) VALUES(0);");
-			sql.executeUpdate();
-			System.err.println(e.getStackTrace());
-		}
 		sql.close();
-		connection.close();
 	}
 
 }
