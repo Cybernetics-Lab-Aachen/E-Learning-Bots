@@ -140,11 +140,15 @@ public class Controller {
 			ResultSet res = statement.executeQuery("SELECT * FROM  visits");
 			res.next();
 			int test = res.getInt("visits");
+			res.close();
+			statement.close();
 		} catch (java.sql.SQLException e) {
 			sql = (PreparedStatement) connection.prepareStatement("INSERT INTO `visits` (`visits`) VALUES(0);");
 			sql.executeUpdate();
 			System.err.println(e.getStackTrace());
 		}
+		sql.close();
+		connection.close();
 	}
 
 }

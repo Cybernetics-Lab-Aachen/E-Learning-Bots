@@ -69,64 +69,69 @@ public class MyCrawler extends WebCrawler {
 	 */
 	@Override
 	public void visit(Page page) {
-		try {
-			AlchemyResults gatheredData = new AlchemyResults();
-			boolean passed = false;
-			gatheredData.setUrl(page.getWebURL().getURL());
-			System.out.println("URL: " + gatheredData.getUrl());
+		try (Connection connection = DriverManager.getConnection(
+				"jdbc:mysql://" + Controller.host + ":" + Controller.port + "/" + Controller.name + "",
+				"" + Controller.user, "" + Controller.password)) {
 			try {
-				String urlString = Controller.kpiManagerURL + "-visited";
-				URL url = new URL(urlString);
-				URLConnection conn = url.openConnection();
-				InputStream is = conn.getInputStream();
-			} catch (IOException e) {
-			}
-			Connection connection = DriverManager.getConnection(
-					"jdbc:mysql://" + Controller.host + ":" + Controller.port + "/" + Controller.name + "",
-					"" + Controller.user, "" + Controller.password);
-			Statement statement = connection.createStatement();
-			ResultSet res1 = statement.executeQuery("SELECT * FROM  visits");
-			res1.next();
-			int counter = res1.getInt("visits");
-			counter++;
-			PreparedStatement sql = (PreparedStatement) connection
-					.prepareStatement("UPDATE visits SET visits =" + counter);
-			sql.executeUpdate();
-
-			if (page.getParseData() instanceof HtmlParseData) {
-				HtmlParseData htmlParseData = (HtmlParseData) page.getParseData();
-				gatheredData.setText(htmlParseData.getText());
-				// check text with whitelistCrawler
-				passed = checkWhiteList(WHITELIST_CRAWLER, passed, gatheredData.getText());
-				if (passed == false) {
-					return;
-				}
+				AlchemyResults gatheredData = new AlchemyResults();
+				boolean passed = false;
+				gatheredData.setUrl(page.getWebURL().getURL());
+				System.out.println("URL: " + gatheredData.getUrl());
 				try {
-					String urlString = Controller.kpiManagerURL + "-stored";
+					String urlString = Controller.kpiManagerURL + "-visited";
 					URL url = new URL(urlString);
 					URLConnection conn = url.openConnection();
 					InputStream is = conn.getInputStream();
 				} catch (IOException e) {
 				}
-				if (Controller.enableAlchemy) {
-					useAlchemy(WHITELIST_ANALYSIS, gatheredData);
-				}
-				try {
-					if (Controller.restart == false) {
-						ResultSet res2 = statement
-								.executeQuery("SELECT * FROM  sources WHERE url ='" + gatheredData.getUrl() + "'");
-						res2.next();
-						Controller.run = res2.getInt("run");
-						Controller.restart = true;
+
+				Statement statement = connection.createStatement();
+				ResultSet res1 = statement.executeQuery("SELECT * FROM  visits");
+				res1.next();
+				int counter = res1.getInt("visits");
+				counter++;
+				PreparedStatement sql = (PreparedStatement) connection
+						.prepareStatement("UPDATE visits SET visits =" + counter);
+				sql.executeUpdate();
+
+				if (page.getParseData() instanceof HtmlParseData) {
+					HtmlParseData htmlParseData = (HtmlParseData) page.getParseData();
+					gatheredData.setText(htmlParseData.getText());
+					// check text with whitelistCrawler
+					passed = checkWhiteList(WHITELIST_CRAWLER, passed, gatheredData.getText());
+					if (passed == false) {
+						return;
 					}
-				} catch (Exception e) {
-					Controller.restart = true;
-					Controller.run = 1;
+					try {
+						String urlString = Controller.kpiManagerURL + "-stored";
+						URL url = new URL(urlString);
+						URLConnection conn = url.openConnection();
+						InputStream is = conn.getInputStream();
+					} catch (IOException e) {
+					}
+					if (Controller.enableAlchemy) {
+						useAlchemy(WHITELIST_ANALYSIS, gatheredData);
+					}
+					try {
+						if (Controller.restart == false) {
+							ResultSet res2 = statement
+									.executeQuery("SELECT * FROM  sources WHERE url ='" + gatheredData.getUrl() + "'");
+							res2.next();
+							Controller.run = res2.getInt("run");
+							Controller.restart = true;
+						}
+					} catch (Exception e) {
+						Controller.restart = true;
+						Controller.run = 1;
+					}
+					accessDB(connection, statement, gatheredData);
+					connection.close();
 				}
-				accessDB(connection, statement, gatheredData);
+			} catch (IOException | SQLException | ParseException | InterruptedException ex) {
+				onUnhandledException(page.getWebURL(), ex);
 			}
-		} catch (IOException | SQLException | ParseException | InterruptedException ex) {
-			onUnhandledException(page.getWebURL(), ex);
+		} catch (SQLException e1) {
+			e1.printStackTrace();
 		}
 	}
 
@@ -197,6 +202,7 @@ public class MyCrawler extends WebCrawler {
 					+ "' AND run ='" + Controller.run + "'");
 			res.next();
 			int id = res.getInt("sourceId");
+			res.close();
 
 			for (int i = 0; i < gatheredData.getConcepts().length;) {
 				if (gatheredData.getConcept(1) != "") {
@@ -281,9 +287,10 @@ public class MyCrawler extends WebCrawler {
 		} catch (java.sql.SQLException e) {
 			System.err.println(e.getStackTrace());
 		}
+		connection.close();
 	}
 
-	public AlchemyResults parseJson(String alchemy, String text ) {
+	public AlchemyResults parseJson(String alchemy, String text) {
 		AlchemyResults gatheredData = new AlchemyResults();
 		gatheredData.setText(text);
 		int arrayField = 0;
