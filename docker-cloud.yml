@@ -1,9 +1,9 @@
 db:
   environment:
-    - MYSQL_DATABASE=demo
-    - MYSQL_PASSWORD='*****'
-    - MYSQL_ROOT_PASSWORD='*****'
-    - MYSQL_USER=e-learning-bots
+    - MYSQL_DATABASE=DATA
+    - MYSQL_PASSWORD=password
+    - MYSQL_ROOT_PASSWORD=password
+    - MYSQL_USER=dbUser
   image: 'mariadb:latest'
   restart: always
   sequential_deployment: true
@@ -11,12 +11,18 @@ db:
     - /var/lib/mysql
 e-learning-bots:
   environment:
-    - ALCHEMY_KEY='*****'
-    - MYSQL_DATABASE=demo
-    - MYSQL_PASSWORD='*****'
-    - MYSQL_USER=e-learning-bots
+    - CRAWLER_ALCHEMY_KEY=key
+    - 'CRAWLER_KPIManager_URL=http://www....'
+    - CRAWLER_NUM_CRAWLERS=1
     - CRAWLER_RESTART_EVERY_DAYS=90
-    - CRAWLER_NUM_CRAWLERS=3
+    - 'CRAWLER_SEEDS=http://www.....;http://www.....'
+    - CRAWLER_Store_Sources=true
+    - CRAWLER_USE_ALCHEMY=false
+    - CRAWLER_WHITELIST_ANALYSIS=keyword1;keyword2;keyword3
+    - CRAWLER_WHITELIST_CRAWLER=keyword1;keyword2;keyword3
+    - MYSQL_DATABASE=DATA
+    - MYSQL_PASSWORD=password
+    - MYSQL_USER=dbUser
   image: 'elli2/e-learning-bots:latest'
   links:
     - db
