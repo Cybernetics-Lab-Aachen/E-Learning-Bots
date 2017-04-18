@@ -88,7 +88,7 @@ public class MyCrawler extends WebCrawler {
 				HtmlParseData htmlParseData = (HtmlParseData) page.getParseData();
 				gatheredData.setText(htmlParseData.getText());
 				// check text with whitelistCrawler
-				passed = checkWhiteList(WHITELIST_CRAWLER, passed, gatheredData.getText());
+				passed = checkWhiteList(WHITELIST_CRAWLER, passed, gatheredData.getText(), gatheredData.getUrl());
 				if (passed == false) {
 					return;
 				}
@@ -162,7 +162,7 @@ public class MyCrawler extends WebCrawler {
 
 		// check analysis with whitelistAnalysis
 		boolean passed = false;
-		passed = checkWhiteList(whiteList, passed, gatheredData.getText());
+		passed = checkWhiteList(whiteList, passed, gatheredData.getText(), gatheredData.getUrl());
 		if (passed == false) {
 			return;
 		}
@@ -616,10 +616,11 @@ public class MyCrawler extends WebCrawler {
 		return gatheredData;
 	}
 
-	public boolean checkWhiteList(String[] whiteList, boolean passed, String text) {
+	public boolean checkWhiteList(String[] whiteList, boolean passed, String text, String url) {
 		for (int i = 0; i < whiteList.length; i++) {
 			if (text.toLowerCase().contains(whiteList[i].toLowerCase())) {
 				passed = true;
+				System.out.println(url + " passed whitelist");
 				return passed;
 			}
 		}

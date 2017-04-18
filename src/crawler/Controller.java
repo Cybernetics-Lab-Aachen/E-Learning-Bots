@@ -95,7 +95,7 @@ public class Controller {
 		RobotstxtConfig robotstxtConfig = new RobotstxtConfig();
 		RobotstxtServer robotstxtServer = new RobotstxtServer(robotstxtConfig, pageFetcher);
 		CrawlController controller = new CrawlController(config, pageFetcher, robotstxtServer);
-		getRowCount();
+		System.out.println("Sources saved:"+getRowCount());
 		/*
 		 * For each crawl, you need to add some seed urls. These are the first
 		 * URLs that are fetched and then the crawler starts following links
@@ -142,12 +142,11 @@ public class Controller {
 					"" + Controller.user, "" + Controller.password);
 			Statement statement = connection.createStatement();
 
-			ResultSet resultSet = statement.executeQuery("select * from testdb.emg");
+			ResultSet resultSet = statement.executeQuery("SELECT COUNT(*) FROM sources;");
 			int count = 0;
 			while (resultSet.next()) {
-				count++;
+				return resultSet.getInt(1);
 			}
-			return count;
 		} catch (Exception e) {
 		} finally {
 			connection.close();
