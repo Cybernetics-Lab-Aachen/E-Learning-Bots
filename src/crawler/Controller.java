@@ -135,8 +135,9 @@ public class Controller {
 	}
 
 	static int getRowCount() throws Exception {
+		Connection connection = null;
 		try {
-			Connection connection = DriverManager.getConnection(
+			connection = DriverManager.getConnection(
 					"jdbc:mysql://" + Controller.host + ":" + Controller.port + "/" + Controller.name + "",
 					"" + Controller.user, "" + Controller.password);
 			Statement statement = connection.createStatement();
@@ -148,6 +149,8 @@ public class Controller {
 			}
 			return count;
 		} catch (Exception e) {
+		} finally {
+			connection.close();
 		}
 		return 0;
 
